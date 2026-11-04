@@ -9,80 +9,150 @@
 :root{
   --lavender:#cbb3e8;--chartreuse:#d4ff3f;--tomato:#e34234;
   --jet:#0a0a0a;--cerulean:#007ba7;--rose:#ff2d95;
-  --glass:rgba(10,10,20,0.72);--border:rgba(203,179,232,0.18);
+  --glass:rgba(8,8,18,0.85);--border:rgba(203,179,232,0.18);
 }
-html,body{width:100%;height:100%;overflow:hidden;background:var(--jet);font-family:'Segoe UI',system-ui,sans-serif;color:#e8e4f0}
+html,body{width:100%;height:100%;overflow:hidden;background:#060610;
+  font-family:'Segoe UI',system-ui,sans-serif;color:#e8e4f0}
 canvas#gl{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
 
 /* NAV */
 nav{position:fixed;top:0;left:0;right:0;z-index:10;
   display:flex;align-items:center;padding:0 24px;height:52px;
-  background:rgba(10,10,20,0.85);border-bottom:1px solid var(--border);
-  backdrop-filter:blur(12px)}
-.nav-logo{font-size:1.05rem;font-weight:700;letter-spacing:.5px;color:#fff}
+  background:rgba(6,6,20,0.92);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(16px)}
+.nav-logo{font-size:1.05rem;font-weight:700;letter-spacing:.4px;color:#fff}
 .nav-logo span{color:var(--lavender)}
-.nav-sub{font-size:.72rem;color:#888;margin-left:10px;letter-spacing:.5px}
+.nav-sub{font-size:.72rem;color:#777;margin-left:10px;letter-spacing:.5px}
 .nav-badges{margin-left:auto;display:flex;gap:8px}
-.badge{padding:4px 10px;border-radius:20px;font-size:.68rem;font-weight:600;letter-spacing:.5px;border:1px solid var(--border);background:rgba(203,179,232,.08);color:var(--lavender)}
-.badge.ok{border-color:rgba(0,123,167,.5);color:var(--cerulean);background:rgba(0,123,167,.1)}
+.badge{padding:4px 10px;border-radius:20px;font-size:.67rem;font-weight:600;
+  letter-spacing:.5px;border:1px solid var(--border);
+  background:rgba(203,179,232,.06);color:var(--lavender)}
+.badge.ok{border-color:rgba(0,123,167,.45);color:var(--cerulean);background:rgba(0,123,167,.08)}
 
 /* UPLOAD PANEL */
-.upload-panel{position:fixed;top:70px;left:24px;z-index:10;width:280px;
+.upload-panel{
+  position:fixed;top:64px;left:20px;z-index:20;width:290px;
+  max-height:calc(100vh - 80px);overflow-y:auto;overflow-x:hidden;
   background:var(--glass);border:1px solid var(--border);border-radius:16px;
-  padding:20px;backdrop-filter:blur(20px)}
-.pnl-title{font-size:.62rem;font-weight:700;letter-spacing:1.5px;color:var(--lavender);margin-bottom:14px;text-transform:uppercase}
-.drop-zone{border:1.5px dashed var(--border);border-radius:10px;padding:28px 16px;
-  text-align:center;cursor:pointer;transition:all .25s;position:relative}
-.drop-zone:hover,.drop-zone.drag{border-color:var(--lavender);background:rgba(203,179,232,.06)}
-.drop-icon{font-size:2rem;margin-bottom:8px;opacity:.5}
-.drop-title{font-size:.85rem;font-weight:600;color:#ccc;margin-bottom:4px}
-.drop-hint{font-size:.68rem;color:#666}
-#file-inp{display:none}
-#preview-img{width:100%;border-radius:8px;margin-top:12px;display:none;border:1px solid var(--border)}
-.analyze-btn{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;
-  background:linear-gradient(135deg,rgba(203,179,232,.25),rgba(203,179,232,.12));
-  border:1px solid var(--lavender);color:var(--lavender);font-size:.82rem;font-weight:700;
-  letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:all .25s}
-.analyze-btn:hover:not(:disabled){background:linear-gradient(135deg,rgba(203,179,232,.4),rgba(203,179,232,.2));transform:translateY(-1px)}
-.analyze-btn:disabled{opacity:.4;cursor:not-allowed}
-.result-box{margin-top:14px;padding:12px;border-radius:10px;display:none;
-  border:1px solid var(--border);background:rgba(10,10,20,.5)}
-.result-label{font-size:.6rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#888;margin-bottom:4px}
-.result-val{font-size:1.1rem;font-weight:800;letter-spacing:.5px}
-.result-conf{font-size:.72rem;color:#888;margin-top:3px}
+  padding:16px;backdrop-filter:blur(24px);
+  box-shadow:0 16px 40px rgba(0,0,0,0.65);
+  scrollbar-width:thin;scrollbar-color:rgba(203,179,232,.25) transparent;
+}
+.upload-panel::-webkit-scrollbar{width:4px}
+.upload-panel::-webkit-scrollbar-thumb{background:rgba(203,179,232,.25);border-radius:4px}
+
+.pnl-title{font-size:.62rem;font-weight:700;letter-spacing:1.6px;
+  color:var(--lavender);margin-bottom:12px;text-transform:uppercase}
+
+.drop-zone{
+  border:1.5px dashed rgba(203,179,232,.28);border-radius:10px;
+  padding:22px 14px;text-align:center;cursor:pointer;transition:all .22s;
+  background:rgba(203,179,232,.03);
+}
+.drop-zone:hover,.drop-zone.drag{
+  border-color:var(--lavender);background:rgba(203,179,232,.08);
+}
+.drop-icon{font-size:1.8rem;margin-bottom:6px;opacity:.5}
+.drop-title{font-size:.82rem;font-weight:600;color:#ccc;margin-bottom:4px}
+.drop-hint{font-size:.66rem;color:#666;line-height:1.4}
+
+/* Preview Card */
+.preview-card{
+  display:none;border-radius:10px;overflow:hidden;
+  border:1px solid var(--border);background:rgba(0,0,0,0.45);
+}
+.preview-img-wrap{
+  position:relative;width:100%;height:160px;background:#030308;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+#preview-img{max-width:100%;max-height:160px;object-fit:contain;display:block}
+.change-btn{
+  position:absolute;top:8px;right:8px;padding:4px 9px;border-radius:6px;
+  background:rgba(10,10,20,0.85);border:1px solid var(--border);
+  color:#e8e4f0;font-size:.65rem;font-weight:600;cursor:pointer;
+  backdrop-filter:blur(8px);transition:all .2s;
+}
+.change-btn:hover{border-color:var(--lavender);color:var(--lavender)}
+.file-meta{
+  padding:7px 10px;display:flex;justify-content:space-between;align-items:center;
+  font-size:.65rem;background:rgba(203,179,232,.05);border-top:1px solid rgba(203,179,232,.1);
+}
+.file-name{color:#ddd;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
+.file-size{color:#777}
+
+/* Analyze Button */
+.analyze-btn{
+  width:100%;margin-top:12px;padding:12px 14px;border-radius:10px;
+  border:1px solid rgba(203,179,232,.3);background:rgba(203,179,232,.10);
+  color:#777;font-size:.8rem;font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;cursor:not-allowed;transition:all .25s ease;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.analyze-btn.ready{
+  cursor:pointer;
+  background:linear-gradient(135deg,#cbb3e8 0%,#b293d8 100%);
+  color:#120924;
+  border:1px solid #dfd0f5;
+  box-shadow:0 0 20px rgba(203,179,232,.5);
+  font-weight:800;
+}
+.analyze-btn.ready:hover{
+  transform:translateY(-1px);
+  box-shadow:0 0 26px rgba(203,179,232,.75);
+}
+
+/* Results */
+.result-box{
+  margin-top:12px;padding:12px;border-radius:10px;display:none;
+  border:1px solid var(--border);background:rgba(6,6,18,.75);
+}
+.result-label{font-size:.58rem;font-weight:700;letter-spacing:1.3px;
+  text-transform:uppercase;color:#777;margin-bottom:4px}
+.result-val{font-size:1.05rem;font-weight:800;letter-spacing:.3px;line-height:1.25}
+.result-conf{font-size:.68rem;color:#888;margin-top:5px;line-height:1.4}
 .result-val.normal{color:var(--chartreuse)}
 .result-val.pathology{color:var(--tomato)}
+.result-triage{
+  margin-top:8px;padding:6px 8px;border-radius:6px;font-size:.64rem;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#bbb;
+}
 
 /* STATS PANEL */
-.stats-panel{position:fixed;top:70px;right:24px;z-index:10;width:200px;display:flex;flex-direction:column;gap:10px}
+.stats-panel{position:fixed;top:64px;right:20px;z-index:20;
+  width:196px;display:flex;flex-direction:column;gap:9px}
 .sp-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;
-  padding:14px 16px;backdrop-filter:blur(20px)}
-.spc-lbl{font-size:.58rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#666;margin-bottom:4px}
-.spc-val{font-size:1.4rem;font-weight:800;color:#e8e4f0;line-height:1}
+  padding:12px 14px;backdrop-filter:blur(24px)}
+.spc-lbl{font-size:.57rem;font-weight:700;letter-spacing:1.3px;
+  text-transform:uppercase;color:#555;margin-bottom:4px}
+.spc-val{font-size:1.35rem;font-weight:800;color:#e0dced;line-height:1}
 .spc-val.c{color:var(--cerulean)}
 .spc-val.r{color:var(--rose)}
 .spc-val.g{color:var(--chartreuse)}
-.spc-sub{font-size:.6rem;color:#555;margin-top:3px}
-.legend-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:14px 16px;backdrop-filter:blur(20px)}
-.legend-title{font-size:.58rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#666;margin-bottom:8px}
-.legend-row{display:flex;align-items:center;gap:7px;font-size:.65rem;color:#888;margin-bottom:4px}
-.leg-dot{width:7px;height:7px;border-radius:50%}
+.spc-sub{font-size:.59rem;color:#484858;margin-top:3px}
+.legend-card{background:var(--glass);border:1px solid var(--border);
+  border-radius:12px;padding:12px 14px;backdrop-filter:blur(24px)}
+.leg-title{font-size:.57rem;font-weight:700;letter-spacing:1.3px;
+  text-transform:uppercase;color:#555;margin-bottom:8px}
+.leg-row{display:flex;align-items:center;gap:7px;font-size:.64rem;
+  color:#777;margin-bottom:5px}
+.leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
-/* BOTTOM MODES */
-.mode-bar{position:fixed;bottom:0;left:0;right:0;z-index:10;
-  display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0 14px}
-.mode-hint{font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:#444}
-.mode-btns{display:flex;gap:10px}
-.mode-btn{padding:8px 18px;border-radius:20px;border:1px solid var(--border);
-  background:rgba(10,10,20,.75);color:#888;font-size:.7rem;font-weight:600;
-  letter-spacing:.5px;cursor:pointer;transition:all .25s;backdrop-filter:blur(10px)}
-.mode-btn.active{border-color:var(--lavender);color:var(--lavender);background:rgba(203,179,232,.12)}
-.disclaimer{font-size:.58rem;color:#333;letter-spacing:.5px}
+/* MODE BAR */
+.mode-bar{position:fixed;bottom:0;left:0;right:0;z-index:20;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:8px 0 12px;pointer-events:none}
+.mode-hint{font-size:.58rem;letter-spacing:1.4px;text-transform:uppercase;color:#444}
+.mode-btns{display:flex;gap:8px;pointer-events:auto}
+.mode-btn{padding:6px 16px;border-radius:20px;border:1px solid var(--border);
+  background:rgba(8,8,24,.85);color:#777;font-size:.68rem;font-weight:600;
+  letter-spacing:.4px;cursor:pointer;transition:all .22s;backdrop-filter:blur(10px)}
+.mode-btn.active{border-color:var(--lavender);color:var(--lavender);
+  background:rgba(203,179,232,.12)}
+.disclaimer{font-size:.56rem;color:#3a3a50;letter-spacing:.4px}
 </style>
 </head>
 <body>
 
-<!-- WebGL Canvas -->
 <canvas id="gl"></canvas>
 
 <!-- Navigation -->
@@ -98,18 +168,33 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
 <!-- Upload Panel -->
 <div class="upload-panel">
   <div class="pnl-title">Radiograph Input</div>
+  
+  <input type="file" id="file-inp" accept="image/*,.dcm" style="display:none;"/>
+  
   <div class="drop-zone" id="drop-zone">
     <div class="drop-icon">🦴</div>
-    <div class="drop-title">Drop knee X-ray or click to browse</div>
+    <div class="drop-title">Drop knee X-ray or click</div>
     <div class="drop-hint">JPEG · PNG · WebP · Max 20 MB<br>AP view preferred</div>
-    <input type="file" id="file-inp" accept="image/*"/>
   </div>
-  <img id="preview-img" alt="Preview"/>
-  <button class="analyze-btn" id="analyze-btn" disabled>Analyze Radiograph</button>
+
+  <div class="preview-card" id="preview-card">
+    <div class="preview-img-wrap">
+      <img id="preview-img" alt="Preview"/>
+      <button type="button" class="change-btn" id="change-btn">Change</button>
+    </div>
+    <div class="file-meta">
+      <div class="file-name" id="file-name">—</div>
+      <div class="file-size" id="file-size">—</div>
+    </div>
+  </div>
+
+  <button class="analyze-btn" id="analyze-btn" disabled>Select Knee X-ray</button>
+
   <div class="result-box" id="result-box">
-    <div class="result-label">Classification</div>
+    <div class="result-label">Diagnostic Classification</div>
     <div class="result-val" id="result-val">—</div>
     <div class="result-conf" id="result-conf">—</div>
+    <div class="result-triage" id="result-triage" style="display:none;"></div>
   </div>
 </div>
 
@@ -123,12 +208,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
   <div class="sp-card">
     <div class="spc-lbl">Subchondral BMD</div>
     <div class="spc-val c" id="sp-bmd">1.24</div>
-    <div class="spc-sub">g/cm² (Femoral/Tibial)</div>
+    <div class="spc-sub">g/cm² (Femoral / Tibial)</div>
   </div>
   <div class="sp-card">
     <div class="spc-lbl">WHO T-Score</div>
     <div class="spc-val" id="sp-tscore">+0.8</div>
-    <div class="spc-sub">Normal: ≥ -1.0 SD</div>
+    <div class="spc-sub">Normal: ≥ −1.0 SD</div>
   </div>
   <div class="sp-card">
     <div class="spc-lbl">Trabecular Porosity</div>
@@ -136,312 +221,360 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
     <div class="spc-sub">≤20% = normal</div>
   </div>
   <div class="legend-card">
-    <div class="legend-title">Density Map</div>
-    <div class="legend-row"><span class="leg-dot" style="background:#007ba7"></span>Dense cortical</div>
-    <div class="legend-row"><span class="leg-dot" style="background:#9b59b6"></span>Transition zone</div>
-    <div class="legend-row"><span class="leg-dot" style="background:#ff2d95"></span>Porous / degraded</div>
+    <div class="leg-title">Tissue Legend</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#f0e0b8"></span>Cortical bone</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#55ceec"></span>Articular cartilage</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#ff2d95"></span>Subchondral erosion</div>
   </div>
 </div>
 
 <!-- Mode Bar -->
 <div class="mode-bar">
-  <div class="mode-hint">Drag canvas to rotate · Scroll to zoom</div>
+  <div class="mode-hint">Drag to rotate · Scroll to zoom</div>
   <div class="mode-btns">
     <button class="mode-btn active" data-mode="0">● Healthy</button>
     <button class="mode-btn" data-mode="1">● Degrading</button>
     <button class="mode-btn" data-mode="2">● Osteoporotic</button>
-    <span class="mode-btn" style="cursor:default;border-color:transparent;color:#555">Drag to rotate</span>
   </div>
   <div class="disclaimer">⚠ For research use only — not for clinical diagnosis or treatment decisions.</div>
 </div>
 
 {% raw %}
 <script>
-// ============================================================
-//  ANATOMICAL KNEE JOINT — WebGL 2 Simulation
-//  Structures: Distal Femur (condyles) + Tibiofemoral Joint Space
-//              Proximal Tibia (plateau + spine) + Fibular Head
-//  Pathology:  Subchondral demineralisation, JSN, trabecular loss
-// ============================================================
+// ═══════════════════════════════════════════════════════════════
+//  ORTHOSCAN AI  — Anatomical Knee Joint  · WebGL 2 Solid Mesh
+//  Structures: Distal Femur (Shaft / Metaphysis / Medial & Lateral
+//              Condyles) + Tibiofemoral Joint Space +
+//              Proximal Tibia (Plateau / Shaft) + Fibula
+//  Shader: Blinn-Phong, 3-point lighting, two-pass transparency
+//  Pathology: Subchondral demineralisation + JSN collapse
+// ═══════════════════════════════════════════════════════════════
 (function(){
 "use strict";
 
 const canvas = document.getElementById('gl');
-const gl = canvas.getContext('webgl2',{antialias:true,alpha:false});
-if(!gl){document.body.innerHTML='<p style="color:#f00;padding:40px">WebGL 2 not supported.</p>';return;}
+const gl = canvas.getContext('webgl2',{antialias:true,alpha:false,depth:true});
+if(!gl){ document.body.innerHTML='<p style="color:red;padding:40px">WebGL 2 not supported.</p>'; return; }
 
-// ─── SHADERS ─────────────────────────────────────────────────
+// ── VERTEX SHADER ────────────────────────────────────────────
 const VS = `#version 300 es
 precision highp float;
-in vec3  a_pos;
-in float a_density;   // 0=dead/porous  1=dense/healthy
-in float a_isFemur;   // 1=femur bone  0=tibia/fibula
-in float a_isSub;     // 1=subchondral node
 
-uniform mat4 u_mvp;
-uniform float u_pathology;   // 0..1 degradation
-uniform float u_collapse;    // 0..1 JSN collapse (femur drops toward tibia)
-uniform float u_time;
+layout(location=0) in vec3 a_pos;
+layout(location=1) in vec3 a_normal;
+layout(location=2) in float a_isFemur;
+layout(location=3) in float a_isSub;
+layout(location=4) in float a_isCart;
 
-out float v_density;
-out float v_alive;
-out float v_glow;
+uniform mat4 u_mv;
+uniform mat4 u_proj;
+uniform float u_collapse;  // 0=healthy  1=JSN collapsed
+
+out vec3  v_pos_vs;
+out vec3  v_norm_vs;
+out float v_isSub;
+out float v_isCart;
 
 void main(){
   vec3 p = a_pos;
 
-  // JSN: femur descends toward tibia
-  if(a_isFemur > 0.5){
-    p.y -= u_collapse * 0.55;
-  }
+  // Joint Space Narrowing: femur descends toward tibia
+  if(a_isFemur > 0.5) p.y -= u_collapse * 0.34;
 
-  // Subchondral dies first, then shaft trabecular
-  float deathThresh = mix(0.15, 0.55, a_isSub);
-  float alive = 1.0 - smoothstep(deathThresh, deathThresh + 0.3, u_pathology * a_density);
-  v_alive = alive;
+  // Push cartilage slightly outward to avoid z-fighting with bone
+  if(a_isCart > 0.5) p += a_normal * 0.013;
 
-  // Pulsing glow on degraded subchondral nodes
-  float pulse = sin(u_time * 2.8 + a_pos.x * 4.0 + a_pos.z * 3.0) * 0.5 + 0.5;
-  v_glow = (1.0 - alive) * a_isSub * pulse * u_pathology;
+  vec4 vp   = u_mv * vec4(p, 1.0);
+  v_pos_vs  = vp.xyz;
+  v_norm_vs = mat3(u_mv) * a_normal;
+  v_isSub   = a_isSub;
+  v_isCart  = a_isCart;
 
-  v_density = a_density;
-
-  // Dead nodes shrink to point
-  p *= mix(0.0, 1.0, alive);
-
-  gl_Position = u_mvp * vec4(p, 1.0);
-  gl_PointSize = mix(1.5, 5.5, a_density) * alive + (1.0 - alive) * 0.0;
+  gl_Position = u_proj * vp;
 }`;
 
+// ── FRAGMENT SHADER ──────────────────────────────────────────
 const FS = `#version 300 es
 precision highp float;
-in float v_density;
-in float v_alive;
-in float v_glow;
+
+in vec3  v_pos_vs;
+in vec3  v_norm_vs;
+in float v_isSub;
+in float v_isCart;
+
+uniform float u_pathology;   // 0=healthy  1=severe osteoporosis
+uniform float u_time;
+uniform int   u_pass;        // 0=opaque bone  1=transparent cartilage
+
 out vec4 fragColor;
 
-uniform float u_pathology;
+// Smooth value noise for surface micro-texture
+float hash31(vec3 p){
+  p = fract(p * vec3(443.8975,397.2973,491.1871));
+  p += dot(p, p.yxz + 19.19);
+  return fract((p.x + p.y) * p.z);
+}
+float noise(vec3 p){
+  vec3 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
+  return mix(mix(mix(hash31(i),          hash31(i+vec3(1,0,0)),u.x),
+                 mix(hash31(i+vec3(0,1,0)),hash31(i+vec3(1,1,0)),u.x),u.y),
+             mix(mix(hash31(i+vec3(0,0,1)),hash31(i+vec3(1,0,1)),u.x),
+                 mix(hash31(i+vec3(0,1,1)),hash31(i+vec3(1,1,1)),u.x),u.y),u.z);
+}
 
 void main(){
-  // Soft circular point
-  vec2 uv = gl_PointCoord * 2.0 - 1.0;
-  float r = dot(uv,uv);
-  if(r > 1.0) discard;
-  float alpha = (1.0 - r) * v_alive;
-  if(alpha < 0.01) discard;
+  // Two-pass transparency
+  if(u_pass == 0 && v_isCart > 0.5) discard;
+  if(u_pass == 1 && v_isCart < 0.5) discard;
 
-  // Healthy: cerulean #007ba7, Porous: rose #ff2d95
-  vec3 cerulean = vec3(0.0, 0.482, 0.655);
-  vec3 rose     = vec3(1.0, 0.176, 0.584);
-  vec3 purple   = vec3(0.6, 0.35, 0.85);
+  vec3 N = normalize(v_norm_vs);
+  vec3 V = normalize(-v_pos_vs);  // Camera at origin in view space
 
-  // Colour by density within current pathology state
-  vec3 col = mix(rose, mix(purple, cerulean, v_density), v_density);
+  // ── THREE-POINT LIGHTING (view-space; moves with camera) ──
+  vec3 Lk = normalize(vec3( 0.55, 1.20,  0.85));  // Key: upper-front-right  (warm)
+  vec3 Lf = normalize(vec3(-0.90, 0.25,  0.60));  // Fill: left-side          (cool, dim)
+  vec3 Lr = normalize(vec3( 0.10,-0.60, -0.90));  // Rim:  back-low           (edge pop)
 
-  // Add glow for eroding subchondral
-  col = mix(col, rose, v_glow * 0.8);
+  float dk = max(dot(N, Lk), 0.0);
+  float df = max(dot(N, Lf), 0.0) * 0.38;
+  float dr = max(dot(N, Lr), 0.0) * 0.22;
 
-  // Rim highlight
-  float rim = 1.0 - smoothstep(0.5, 1.0, r);
-  col += rim * 0.12;
+  vec3  Hk   = normalize(Lk + V);
+  float spec = pow(max(dot(N, Hk), 0.0), 55.0);
 
-  fragColor = vec4(col, alpha * 0.92);
+  // ── BONE MATERIAL ─────────────────────────────────────────
+  vec3 ivoryH   = vec3(0.945, 0.900, 0.760);
+  vec3 boneErode= vec3(0.780, 0.680, 0.650);
+  vec3 subHot   = vec3(0.920, 0.400, 0.550);
+  vec3 cartBlue = vec3(0.520, 0.830, 0.960);
+
+  float n = noise(v_pos_vs * 18.0) * 0.055;
+
+  vec3 baseC = mix(ivoryH, boneErode, u_pathology * 0.85);
+  if(v_isSub > 0.5){
+    float erosion = u_pathology * u_pathology * 1.4;
+    baseC = mix(baseC, subHot, clamp(erosion, 0.0, 1.0));
+  }
+  baseC = clamp(baseC - n, 0.0, 1.0);
+
+  vec3 albedo = (v_isCart > 0.5) ? cartBlue : baseC;
+
+  float specPow = (v_isCart > 0.5) ? 0.22 : 0.58;
+  vec3 col  = albedo * 0.19             // ambient
+            + albedo * (dk + df + dr)   // diffuse
+            + vec3(spec * specPow);     // specular highlight
+
+  if(v_isSub > 0.5 && u_pathology > 0.3){
+    float pulse = sin(u_time * 2.2 + v_pos_vs.x * 5.0) * 0.5 + 0.5;
+    col = mix(col, vec3(0.95, 0.30, 0.55), u_pathology * pulse * 0.25);
+  }
+
+  float dist  = length(v_pos_vs);
+  float fog   = smoothstep(6.0, 11.0, dist);
+  vec3 fogCol = vec3(0.04, 0.04, 0.09);
+  col = mix(col, fogCol, fog * 0.4);
+
+  float alpha = (v_isCart > 0.5) ? 0.60 : 1.0;
+  fragColor = vec4(col, alpha);
 }`;
 
-function compileShader(src, type){
+// ── COMPILE & LINK ───────────────────────────────────────────
+function mkShader(src, type){
   const s = gl.createShader(type);
   gl.shaderSource(s, src);
   gl.compileShader(s);
   if(!gl.getShaderParameter(s, gl.COMPILE_STATUS))
-    console.error(gl.getShaderInfoLog(s));
+    console.error('Shader compile error:', gl.getShaderInfoLog(s));
   return s;
 }
 const prog = gl.createProgram();
-gl.attachShader(prog, compileShader(VS, gl.VERTEX_SHADER));
-gl.attachShader(prog, compileShader(FS, gl.FRAGMENT_SHADER));
+gl.attachShader(prog, mkShader(VS, gl.VERTEX_SHADER));
+gl.attachShader(prog, mkShader(FS, gl.FRAGMENT_SHADER));
 gl.linkProgram(prog);
 if(!gl.getProgramParameter(prog, gl.LINK_STATUS))
-  console.error(gl.getProgramInfoLog(prog));
+  console.error('Link error:', gl.getProgramInfoLog(prog));
+
 gl.useProgram(prog);
+const U = {
+  mv:   gl.getUniformLocation(prog, 'u_mv'),
+  proj: gl.getUniformLocation(prog, 'u_proj'),
+  col:  gl.getUniformLocation(prog, 'u_collapse'),
+  path: gl.getUniformLocation(prog, 'u_pathology'),
+  time: gl.getUniformLocation(prog, 'u_time'),
+  pass: gl.getUniformLocation(prog, 'u_pass'),
+};
 
-const A_POS     = gl.getAttribLocation(prog,'a_pos');
-const A_DENSITY = gl.getAttribLocation(prog,'a_density');
-const A_FEMUR   = gl.getAttribLocation(prog,'a_isFemur');
-const A_SUB     = gl.getAttribLocation(prog,'a_isSub');
-const U_MVP     = gl.getUniformLocation(prog,'u_mvp');
-const U_PATH    = gl.getUniformLocation(prog,'u_pathology');
-const U_COL     = gl.getUniformLocation(prog,'u_collapse');
-const U_TIME    = gl.getUniformLocation(prog,'u_time');
+// ── GEOMETRY BUILDER ─────────────────────────────────────────
+const VSTRIDE = 9;
 
-// ─── GEOMETRY BUILDER ────────────────────────────────────────
-// Returns array of {x,y,z,density,isFemur,isSub}
-function buildKneeJoint(){
-  const pts = [];
-  const rng = (a,b) => a + Math.random()*(b-a);
+function pushV(arr, x,y,z, nx,ny,nz, iF,iS,iC){
+  arr.push(x,y,z,nx,ny,nz,iF,iS,iC);
+}
 
-  // Helper: add trabecular network inside a region
-  // isSub = nodes near articular surface
-  function addTrabecular(count, region, isFemur, densityRange, subRange){
-    const [xMin,xMax,yMin,yMax,zMin,zMax] = region;
-    for(let i=0;i<count;i++){
-      const x = rng(xMin,xMax);
-      const y = rng(yMin,yMax);
-      const z = rng(zMin,zMax);
-      const d = rng(densityRange[0], densityRange[1]);
-      // subchondral: near articular surface
-      const nearSurface = isFemur
-        ? (y < yMin + 0.35 * (yMax-yMin)) // bottom of femur = articular side
-        : (y > yMin + 0.65 * (yMax-yMin)); // top of tibia = articular side
-      const isSub = (nearSurface || (Math.random() < (subRange||0.2))) ? 1 : 0;
-      pts.push({x,y,z,density:d,isFemur:isFemur?1:0,isSub});
+function buildCylinder({cx=0,cz=0,rB,rT,yB,yT,segs=32,
+                        capB=true,capT=true,iF=0,iS=0,iC=0}){
+  const verts=[], inds=[];
+  let vi=0;
+
+  function v(x,y,z,nx,ny,nz){
+    const l=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+    pushV(verts,x,y,z,nx/l,ny/l,nz/l,iF,iS,iC);
+    return vi++;
+  }
+
+  const dy=yT-yB, dr=rT-rB;
+  const len=Math.sqrt(dy*dy+dr*dr)||1;
+  const ny_side=-dr/len, nr_scale=dy/len;
+
+  const bot=[], top=[];
+  for(let s=0;s<=segs;s++){
+    const a=(s/segs)*Math.PI*2, ca=Math.cos(a), sa=Math.sin(a);
+    bot.push(v(cx+rB*ca,yB,cz+rB*sa, nr_scale*ca,ny_side,nr_scale*sa));
+    top.push(v(cx+rT*ca,yT,cz+rT*sa, nr_scale*ca,ny_side,nr_scale*sa));
+  }
+  for(let s=0;s<segs;s++){
+    inds.push(bot[s],bot[s+1],top[s]);
+    inds.push(bot[s+1],top[s+1],top[s]);
+  }
+
+  if(capB){
+    const c=v(cx,yB,cz,0,-1,0); const r=[];
+    for(let s=0;s<=segs;s++){
+      const a=(s/segs)*Math.PI*2;
+      r.push(v(cx+rB*Math.cos(a),yB,cz+rB*Math.sin(a),0,-1,0));
+    }
+    for(let s=0;s<segs;s++) inds.push(c,r[s+1],r[s]);
+  }
+  if(capT){
+    const c=v(cx,yT,cz,0,1,0); const r=[];
+    for(let s=0;s<=segs;s++){
+      const a=(s/segs)*Math.PI*2;
+      r.push(v(cx+rT*Math.cos(a),yT,cz+rT*Math.sin(a),0,1,0));
+    }
+    for(let s=0;s<segs;s++) inds.push(c,r[s],r[s+1]);
+  }
+  return {verts,inds};
+}
+
+function buildDisc({cx=0,cz=0,r,y,segs=32,ny=1,iF=0,iS=0,iC=0}){
+  const verts=[], inds=[];
+  let vi=0;
+  function v(x,vy,z){ pushV(verts,x,vy,z,0,ny,0,iF,iS,iC); return vi++; }
+  const c=v(cx,y,cz);
+  const ring=[];
+  for(let s=0;s<=segs;s++){
+    const a=(s/segs)*Math.PI*2;
+    ring.push(v(cx+r*Math.cos(a),y,cz+r*Math.sin(a)));
+  }
+  for(let s=0;s<segs;s++){
+    if(ny>0) inds.push(c,ring[s],ring[s+1]);
+    else     inds.push(c,ring[s+1],ring[s]);
+  }
+  return {verts,inds};
+}
+
+function buildEllipsoid({cx=0,cy=0,cz=0,rx=1,ry=1,rz=1,
+                          segs=32,rings=20,r0=0,r1=1,
+                          iF=0,iS=0,iC=0,
+                          subStart=1.1,cartStart=1.1}){
+  const verts=[], inds=[];
+  let vi=0;
+  const ri0=Math.round(r0*rings), ri1=Math.round(r1*rings);
+
+  function v(x,y,z,nx,ny,nz,isS,isC){
+    const l=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+    pushV(verts,x,y,z,nx/l,ny/l,nz/l,iF,isS,isC);
+    return vi++;
+  }
+
+  for(let r=ri0;r<=ri1;r++){
+    const frac=r/rings;
+    const isS= (frac>=subStart)  ? 1 : iS;
+    const isC= (frac>=cartStart) ? 1 : 0;
+    const theta=frac*Math.PI;
+    const sinT=Math.sin(theta), cosT=Math.cos(theta);
+    for(let s=0;s<=segs;s++){
+      const phi=(s/segs)*Math.PI*2;
+      v(cx+rx*sinT*Math.cos(phi), cy+ry*cosT, cz+rz*sinT*Math.sin(phi),
+        sinT*Math.cos(phi)/(rx*rx), cosT/(ry*ry), sinT*Math.sin(phi)/(rz*rz),
+        isS, isC);
     }
   }
 
-  // Helper: ellipsoid shell (cortical bone surface)
-  function addCorticalShell(cx,cy,cz, rx,ry,rz, count, isFemur, densityRange, isSub){
-    for(let i=0;i<count;i++){
-      const theta = Math.acos(2*Math.random()-1);
-      const phi   = Math.random()*Math.PI*2;
-      const jitter = 0.03;
-      const x = cx + (rx+rng(-jitter,jitter)) * Math.sin(theta)*Math.cos(phi);
-      const y = cy + (ry+rng(-jitter,jitter)) * Math.cos(theta);
-      const z = cz + (rz+rng(-jitter,jitter)) * Math.sin(theta)*Math.sin(phi);
-      const d = rng(densityRange[0],densityRange[1]);
-      pts.push({x,y,z,density:d,isFemur:isFemur?1:0,isSub:isSub?1:0});
+  const stride=segs+1, rCount=ri1-ri0;
+  for(let r=0;r<rCount;r++){
+    for(let s=0;s<segs;s++){
+      const a=r*stride+s, b=r*stride+s+1;
+      const c=(r+1)*stride+s, d=(r+1)*stride+s+1;
+      inds.push(a,c,b, b,c,d);
     }
   }
-
-  // Helper: cylinder cortex
-  function addCylinder(cx,yBot,yTop,r, count, isFemur, densityRange, subMode){
-    for(let i=0;i<count;i++){
-      const angle = Math.random()*Math.PI*2;
-      const y = rng(yBot,yTop);
-      const rr = r + rng(-0.025,0.025);
-      const x = cx + rr*Math.cos(angle);
-      const z = rr*Math.sin(angle);
-      const d = rng(densityRange[0],densityRange[1]);
-      const isSub = subMode ? 1 : 0;
-      pts.push({x,y,z,density:d,isFemur:isFemur?1:0,isSub});
-    }
-  }
-
-  // ── DISTAL FEMUR ──────────────────────────────────────────
-  // Femoral shaft (diaphysis) — upper part
-  addCylinder(0, 1.5, 3.2, 0.42, 320, true, [0.75,1.0], false);
-  // Shaft trabecular interior
-  addTrabecular(500, [-0.35,0.35, 1.5,3.2, -0.35,0.35], true, [0.6,0.95]);
-
-  // Metaphysis (flares into condyles)
-  addCylinder(0, 0.75, 1.55, 0.44, 160, true, [0.72,0.98], false);
-  addTrabecular(300, [-0.4,0.4, 0.75,1.55, -0.4,0.4], true, [0.55,0.9]);
-
-  // Medial condyle (left lobe)
-  addCorticalShell(-0.44, 0.22, 0, 0.42, 0.52, 0.42, 200, true, [0.70,0.98], true);
-  addTrabecular(400, [-0.88,-0.02, 0.0,0.72, -0.44,0.44], true, [0.55,0.90]);
-
-  // Lateral condyle (right lobe)
-  addCorticalShell(0.44, 0.22, 0, 0.42, 0.52, 0.42, 200, true, [0.70,0.98], true);
-  addTrabecular(400, [0.02,0.88, 0.0,0.72, -0.44,0.44], true, [0.55,0.90]);
-
-  // Intercondylar fossa (the notch between condyles — lower density spongy)
-  addTrabecular(120, [-0.22,0.22, 0.05,0.55, -0.2,0.2], true, [0.4,0.65]);
-
-  // Articular cartilage face (bottom of femur, densest)
-  for(let i=0;i<180;i++){
-    const x = rng(-0.84,0.84);
-    const z = rng(-0.38,0.38);
-    const y = 0.06 + rng(-0.04,0.04) + 0.12*(x*x/(0.84*0.84));
-    pts.push({x,y,z,density:rng(0.78,1.0),isFemur:1,isSub:1});
-  }
-
-  // ── JOINT SPACE (ARTICULAR GAP) ───────────────────────────
-  // No geometry here — the gap is what makes it anatomical
-  // The gap is from y≈0 downward on femur to y≈-0.08 upward on tibia
-
-  // ── PROXIMAL TIBIA ────────────────────────────────────────
-  // Tibial plateau (flat top surface)
-  for(let i=0;i<220;i++){
-    const angle = Math.random()*Math.PI*2;
-    const rr = Math.random()*0.72;
-    const x = rr*Math.cos(angle);
-    const z = rr*Math.sin(angle)*0.85;
-    const y = -0.1 + rng(-0.03,0.03);
-    pts.push({x,y,z,density:rng(0.70,0.98),isFemur:0,isSub:1});
-  }
-
-  // Tibial plateau subchondral slab
-  addTrabecular(500, [-0.72,0.72, -0.44,-0.1, -0.62,0.62], false, [0.55,0.90]);
-
-  // Tibial shaft (diaphysis) — going down
-  addCylinder(0, -2.8, -0.44, 0.40, 320, false, [0.72,1.0], false);
-  addTrabecular(500, [-0.34,0.34, -2.8,-0.44, -0.34,0.34], false, [0.55,0.90]);
-
-  // Tibial metaphysis
-  addCylinder(0, -0.44,-0.1, 0.65, 160, false, [0.68,0.95], false);
-
-  // Intercondylar eminence (central spine on tibial plateau)
-  addCorticalShell(0, -0.08, 0, 0.09, 0.22, 0.09, 80, false, [0.72,0.98], true);
-  addTrabecular(60, [-0.08,0.08, -0.08,0.14, -0.08,0.08], false, [0.6,0.9]);
-
-  // ── PROXIMAL FIBULA (lateral satellite) ───────────────────
-  addCorticalShell(0.88, -0.52, 0, 0.18, 0.25, 0.18, 80, false, [0.65,0.90], false);
-  addTrabecular(80, [0.72,1.04, -0.72,-0.3, -0.18,0.18], false, [0.5,0.80]);
-  addCylinder(0.88, -1.1, -0.72, 0.17, 80, false, [0.68,0.92], false);
-
-  return pts;
+  return {verts,inds};
 }
 
-// Build geometry
-const rawPts = buildKneeJoint();
-const N = rawPts.length;
-const posArr = new Float32Array(N*3);
-const denArr = new Float32Array(N);
-const femArr = new Float32Array(N);
-const subArr = new Float32Array(N);
-
-for(let i=0;i<N;i++){
-  posArr[i*3+0] = rawPts[i].x;
-  posArr[i*3+1] = rawPts[i].y;
-  posArr[i*3+2] = rawPts[i].z;
-  denArr[i]     = rawPts[i].density;
-  femArr[i]     = rawPts[i].isFemur;
-  subArr[i]     = rawPts[i].isSub;
+function merge(geos){
+  const av=[], ai=[];
+  let base=0;
+  for(const g of geos){
+    for(const x of g.verts) av.push(x);
+    for(const i of g.inds)  ai.push(i+base);
+    base += g.verts.length/VSTRIDE;
+  }
+  return { verts:new Float32Array(av), inds:new Uint32Array(ai) };
 }
 
-// Upload to GPU
-function makeVBO(data){
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-  return buf;
-}
+// ── BUILD ANATOMICAL KNEE JOINT ──────────────────────────────
+const geos = [
+  // Distal Femur
+  buildCylinder({cx:0,cz:0, rB:0.37,rT:0.37, yB:2.1,yT:3.5, segs:32, capB:false, capT:true, iF:1}),
+  buildCylinder({cx:0,cz:0, rB:0.90,rT:0.37, yB:1.1,yT:2.1, segs:32, capB:false, capT:false, iF:1}),
+  buildDisc({cx:0,cz:0, r:0.90, y:1.10, ny:-1, iF:1}),
+  buildEllipsoid({cx:-0.44,cy:1.1,cz:0, rx:0.42,ry:0.52,rz:0.40, segs:32, rings:20, r0:0, r1:1.0, iF:1, subStart:0.82, cartStart:0.95}),
+  buildEllipsoid({cx:0.44,cy:1.1,cz:0, rx:0.42,ry:0.52,rz:0.40, segs:32, rings:20, r0:0, r1:1.0, iF:1, subStart:0.82, cartStart:0.95}),
+
+  // Proximal Tibia
+  buildCylinder({cx:0,cz:0, rB:0.68,rT:0.70, yB:0.08,yT:0.24, segs:32, capB:false, capT:false, iF:0}),
+  buildDisc({cx:0,cz:0, r:0.68, y:0.08, ny:-1, iF:0}),
+  buildDisc({cx:0,cz:0, r:0.70, y:0.24, ny:1, iF:0, iS:1, iC:1}),
+  buildCylinder({cx:0,cz:0, rB:0.42,rT:0.68, yB:-0.50,yT:0.08, segs:32, capB:false, capT:false, iF:0}),
+  buildCylinder({cx:0,cz:0, rB:0.42,rT:0.42, yB:-3.0,yT:-0.50, segs:32, capB:true, capT:false, iF:0}),
+  buildEllipsoid({cx:0,cy:0.24,cz:0, rx:0.09,ry:0.18,rz:0.09, segs:16, rings:12, r0:0, r1:0.5, iF:0, iS:1}),
+
+  // Proximal Fibula
+  buildEllipsoid({cx:0.88,cy:-0.10,cz:0, rx:0.21,ry:0.25,rz:0.21, segs:20, rings:14, r0:0, r1:1.0, iF:0}),
+  buildCylinder({cx:0.88,cz:0, rB:0.14,rT:0.14, yB:-1.30,yT:-0.10, segs:16, capB:true, capT:false, iF:0}),
+];
+
+const { verts:allV, inds:allI } = merge(geos);
+
+// ── UPLOAD TO GPU ────────────────────────────────────────────
 const vao = gl.createVertexArray();
 gl.bindVertexArray(vao);
 
-const posBuf = makeVBO(posArr);
-gl.enableVertexAttribArray(A_POS);
-gl.vertexAttribPointer(A_POS, 3, gl.FLOAT, false, 0, 0);
+const vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, allV, gl.STATIC_DRAW);
 
-const denBuf = makeVBO(denArr);
-gl.enableVertexAttribArray(A_DENSITY);
-gl.vertexAttribPointer(A_DENSITY, 1, gl.FLOAT, false, 0, 0);
+const B = Float32Array.BYTES_PER_ELEMENT;
+const stride = VSTRIDE * B;
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,3,gl.FLOAT,false,stride,0*B);
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1,3,gl.FLOAT,false,stride,3*B);
+gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2,1,gl.FLOAT,false,stride,6*B);
+gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3,1,gl.FLOAT,false,stride,7*B);
+gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4,1,gl.FLOAT,false,stride,8*B);
 
-const femBuf = makeVBO(femArr);
-gl.enableVertexAttribArray(A_FEMUR);
-gl.vertexAttribPointer(A_FEMUR, 1, gl.FLOAT, false, 0, 0);
-
-const subBuf = makeVBO(subArr);
-gl.enableVertexAttribArray(A_SUB);
-gl.vertexAttribPointer(A_SUB, 1, gl.FLOAT, false, 0, 0);
+const ibo = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, allI, gl.STATIC_DRAW);
 
 gl.bindVertexArray(null);
 
-// ─── MATRIX MATH (column-major) ──────────────────────────────
-function mat4(){return new Float32Array(16);}
-function identity(m){m[0]=m[5]=m[10]=m[15]=1;m[1]=m[2]=m[3]=m[4]=m[6]=m[7]=m[8]=m[9]=m[11]=m[12]=m[13]=m[14]=0;return m;}
+// ── MATRIX MATH ──────────────────────────────────────────────
+const m4 = ()=>new Float32Array(16);
+const eye = m=>{m[0]=m[5]=m[10]=m[15]=1;m[1]=m[2]=m[3]=m[4]=m[6]=m[7]=m[8]=m[9]=m[11]=m[12]=m[13]=m[14]=0;return m;};
 
 function mul(a,b){
-  const o=mat4();
+  const o=m4();
   for(let c=0;c<4;c++) for(let r=0;r<4;r++){
     let s=0; for(let k=0;k<4;k++) s+=a[k*4+r]*b[c*4+k];
     o[c*4+r]=s;
@@ -449,209 +582,275 @@ function mul(a,b){
   return o;
 }
 
-function perspective(fov,asp,near,far){
-  const m=mat4();
-  const f=1/Math.tan(fov*0.5);
-  m[0]=f/asp; m[5]=f;
-  m[10]=(far+near)/(near-far); m[11]=-1;
-  m[14]=(2*far*near)/(near-far);
-  return m;
+function persp(fov,asp,near,far){
+  const o=m4(), f=1/Math.tan(fov*0.5);
+  o[0]=f/asp; o[5]=f;
+  o[10]=(far+near)/(near-far); o[11]=-1;
+  o[14]=2*far*near/(near-far);
+  return o;
 }
 
-function rotY(a){
-  const m=identity(mat4());
-  m[0]=Math.cos(a); m[8]=Math.sin(a);
-  m[2]=-Math.sin(a); m[10]=Math.cos(a);
-  return m;
-}
+function rotX(a){const o=eye(m4()),c=Math.cos(a),s=Math.sin(a);o[5]=c;o[9]=-s;o[6]=s;o[10]=c;return o;}
+function rotY(a){const o=eye(m4()),c=Math.cos(a),s=Math.sin(a);o[0]=c;o[8]=s;o[2]=-s;o[10]=c;return o;}
+function trans(x,y,z){const o=eye(m4());o[12]=x;o[13]=y;o[14]=z;return o;}
 
-function rotX(a){
-  const m=identity(mat4());
-  m[5]=Math.cos(a); m[9]=-Math.sin(a);
-  m[6]=Math.sin(a); m[10]=Math.cos(a);
-  return m;
-}
+// ── CAMERA INTERACTION ────────────────────────────────────────
+let yaw=0.42, pitch=-0.10, zoom=5.8;
+let drag=false, lx=0, ly=0;
 
-function translate(tx,ty,tz){
-  const m=identity(mat4());
-  m[12]=tx; m[13]=ty; m[14]=tz;
-  return m;
-}
-
-// ─── INTERACTION ──────────────────────────────────────────────
-let rotYaw = 0.3, rotPitch = -0.15, zoom = 4.5;
-let drag = false, lx = 0, ly = 0;
-
-canvas.addEventListener('mousedown', e=>{drag=true;lx=e.clientX;ly=e.clientY;});
-canvas.addEventListener('mousemove', e=>{
+canvas.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
+window.addEventListener('mousemove',e=>{
   if(!drag) return;
-  rotYaw   += (e.clientX-lx)*0.008;
-  rotPitch += (e.clientY-ly)*0.006;
-  rotPitch  = Math.max(-1.1, Math.min(1.1, rotPitch));
+  yaw  +=(e.clientX-lx)*0.008; pitch+=(e.clientY-ly)*0.006;
+  pitch=Math.max(-1.2,Math.min(1.2,pitch));
   lx=e.clientX; ly=e.clientY;
 });
-canvas.addEventListener('mouseup',   ()=>drag=false);
-canvas.addEventListener('mouseleave',()=>drag=false);
-canvas.addEventListener('wheel', e=>{
-  zoom += e.deltaY*0.005;
-  zoom  = Math.max(2.5, Math.min(8.0, zoom));
+window.addEventListener('mouseup',()=>drag=false);
+canvas.addEventListener('wheel',e=>{
+  zoom+=e.deltaY*0.005; zoom=Math.max(2.5,Math.min(9.5,zoom));
   e.preventDefault();
 },{passive:false});
 
 // Touch
-let t0=null;
+let pinch0=null;
 canvas.addEventListener('touchstart',e=>{
   if(e.touches.length===1){drag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}
-  t0=null; if(e.touches.length===2) t0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-});
+  if(e.touches.length===2)
+    pinch0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                      e.touches[0].clientY-e.touches[1].clientY);
+  e.preventDefault();
+},{passive:false});
 canvas.addEventListener('touchmove',e=>{
   if(e.touches.length===1&&drag){
-    rotYaw  +=(e.touches[0].clientX-lx)*0.008;
-    rotPitch+=(e.touches[0].clientY-ly)*0.006;
-    lx=e.touches[0].clientX;ly=e.touches[0].clientY;
+    yaw  +=(e.touches[0].clientX-lx)*0.008;
+    pitch+=(e.touches[0].clientY-ly)*0.006;
+    lx=e.touches[0].clientX; ly=e.touches[0].clientY;
   }
-  if(e.touches.length===2&&t0!==null){
-    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-    zoom-=(d-t0)*0.012; zoom=Math.max(2.5,Math.min(8.0,zoom)); t0=d;
+  if(e.touches.length===2&&pinch0!==null){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                       e.touches[0].clientY-e.touches[1].clientY);
+    zoom-=(d-pinch0)*0.012; zoom=Math.max(2.5,Math.min(9.5,zoom)); pinch0=d;
   }
   e.preventDefault();
 },{passive:false});
-canvas.addEventListener('touchend',()=>drag=false);
+canvas.addEventListener('touchend',()=>{drag=false;pinch0=null;});
 
-// ─── MODE STATE ───────────────────────────────────────────────
-const MODES = [
-  {pathology:0.0, collapse:0.0, jsn:'4.8 mm', bmd:'1.24', tscore:'+0.8', poros:'12%', jsnClass:'c', bmdClass:'c', tClass:'', pClass:'r'},
-  {pathology:0.45,collapse:0.4, jsn:'3.1 mm', bmd:'0.92', tscore:'−1.4', poros:'38%', jsnClass:'',  bmdClass:'', tClass:'', pClass:'r'},
-  {pathology:0.9, collapse:0.9, jsn:'1.4 mm', bmd:'0.65', tscore:'−2.9', poros:'72%', jsnClass:'r', bmdClass:'r',tClass:'r',pClass:'r'},
+// ── MODE STATE ────────────────────────────────────────────────
+const MODES=[
+  {pathology:0.00, collapse:0.00,
+   jsn:'4.8 mm', bmd:'1.24', ts:'+0.8', po:'12%',
+   jc:'c', bc:'c', tc:'', pc:'r'},
+  {pathology:0.48, collapse:0.55,
+   jsn:'2.9 mm', bmd:'0.91', ts:'−1.4', po:'38%',
+   jc:'',  bc:'',  tc:'', pc:'r'},
+  {pathology:0.94, collapse:0.98,
+   jsn:'1.1 mm', bmd:'0.63', ts:'−2.9', po:'73%',
+   jc:'r', bc:'r', tc:'r', pc:'r'},
 ];
-let targetPathology = 0, targetCollapse = 0;
-let curPathology    = 0, curCollapse    = 0;
-let currentMode     = 0;
 
-function applyMode(m){
-  currentMode     = m;
-  targetPathology = MODES[m].pathology;
-  targetCollapse  = MODES[m].collapse;
-  const md = MODES[m];
-  // Update HUD
-  setHUD('sp-jsn',    md.jsn,    md.jsnClass);
-  setHUD('sp-bmd',    md.bmd,    md.bmdClass);
-  setHUD('sp-tscore', md.tscore, md.tClass);
-  setHUD('sp-poros',  md.poros,  md.pClass);
-  // Active button
-  document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.classList.toggle('active',+b.dataset.mode===m));
+let tPath=0, tCol=0, curPath=0, curCol=0;
+
+function applyMode(i){
+  document.querySelectorAll('.mode-btn[data-mode]')
+    .forEach(b=>b.classList.toggle('active',+b.dataset.mode===i));
+  const m=MODES[i]; tPath=m.pathology; tCol=m.collapse;
+  hud('sp-jsn',m.jsn,m.jc); hud('sp-bmd',m.bmd,m.bc);
+  hud('sp-tscore',m.ts,m.tc); hud('sp-poros',m.po,m.pc);
 }
 
-function setHUD(id,val,cls){
+function hud(id,val,cls){
   const el=document.getElementById(id);
-  if(!el) return;
-  el.textContent=val;
-  el.className='spc-val '+(cls||'');
+  if(el){el.textContent=val; el.className='spc-val '+(cls||'');}
 }
 
-document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>{
-  b.addEventListener('click',()=>applyMode(+b.dataset.mode));
-});
+document.querySelectorAll('.mode-btn[data-mode]')
+  .forEach(b=>b.addEventListener('click',()=>applyMode(+b.dataset.mode)));
+applyMode(0);
 
-// ─── RENDER LOOP ──────────────────────────────────────────────
-let first = true;
+// ── RENDER LOOP ───────────────────────────────────────────────
+let first=true;
 function resize(){
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
   gl.viewport(0,0,canvas.width,canvas.height);
 }
+window.addEventListener('resize',resize);
 
 function frame(ts){
   requestAnimationFrame(frame);
   if(first){resize();first=false;}
 
-  const t = ts * 0.001;
+  const t=ts*0.001;
+  if(!drag) yaw+=0.0028;
 
-  // Auto-rotate when not dragging
-  if(!drag) rotYaw += 0.004;
+  curPath+=(tPath-curPath)*0.022;
+  curCol +=(tCol -curCol )*0.022;
 
-  // Smooth pathology transitions
-  curPathology += (targetPathology - curPathology) * 0.025;
-  curCollapse  += (targetCollapse  - curCollapse)  * 0.025;
+  gl.clearColor(0.04,0.04,0.09,1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
 
-  // Clear
-  gl.clearColor(0.04, 0.04, 0.08, 1.0);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST);
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.BACK);
 
-  // Matrices
-  const asp   = canvas.width / canvas.height;
-  const proj  = perspective(0.9, asp, 0.1, 100.0);
-  const view  = mul(translate(0, -0.1, -zoom), mul(rotX(rotPitch), rotY(rotYaw)));
-  const mvp   = mul(proj, view);
+  const asp  = canvas.width/canvas.height;
+  const proj = persp(0.80, asp, 0.05, 50.0);
+  const mv   = mul(trans(0,-0.5,-zoom), mul(rotX(pitch), rotY(yaw)));
 
   gl.useProgram(prog);
-  gl.uniformMatrix4fv(U_MVP, false, mvp);
-  gl.uniform1f(U_PATH, curPathology);
-  gl.uniform1f(U_COL,  curCollapse);
-  gl.uniform1f(U_TIME, t);
+  gl.uniformMatrix4fv(U.mv,   false, mv);
+  gl.uniformMatrix4fv(U.proj, false, proj);
+  gl.uniform1f(U.col,  curCol);
+  gl.uniform1f(U.path, curPath);
+  gl.uniform1f(U.time, t);
 
   gl.bindVertexArray(vao);
-  gl.drawArrays(gl.POINTS, 0, N);
+
+  // PASS 0: Opaque Bone
+  gl.depthMask(true);
+  gl.disable(gl.BLEND);
+  gl.uniform1i(U.pass, 0);
+  gl.drawElements(gl.TRIANGLES, allI.length, gl.UNSIGNED_INT, 0);
+
+  // PASS 1: Articular Cartilage
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.depthMask(false);
+  gl.uniform1i(U.pass, 1);
+  gl.drawElements(gl.TRIANGLES, allI.length, gl.UNSIGNED_INT, 0);
+
+  gl.depthMask(true);
+  gl.disable(gl.BLEND);
   gl.bindVertexArray(null);
 }
 
 requestAnimationFrame(frame);
-window.addEventListener('resize', resize);
 
-// ─── UPLOAD & PREDICT ─────────────────────────────────────────
-const dz   = document.getElementById('drop-zone');
-const fi   = document.getElementById('file-inp');
-const prev = document.getElementById('preview-img');
-const btn  = document.getElementById('analyze-btn');
-const rbox = document.getElementById('result-box');
-const rval = document.getElementById('result-val');
-const rconf= document.getElementById('result-conf');
+// ── UPLOAD & PREDICT ─────────────────────────────────────────
+const dz          = document.getElementById('drop-zone');
+const fi          = document.getElementById('file-inp');
+const previewCard = document.getElementById('preview-card');
+const prev        = document.getElementById('preview-img');
+const fileName    = document.getElementById('file-name');
+const fileSize    = document.getElementById('file-size');
+const changeBtn   = document.getElementById('change-btn');
+const btn         = document.getElementById('analyze-btn');
+const rbox        = document.getElementById('result-box');
+const rval        = document.getElementById('result-val');
+const rconf       = document.getElementById('result-conf');
+const rtriage     = document.getElementById('result-triage');
 
 function handleFile(file){
-  if(!file||!file.type.startsWith('image/')) return;
-  const url = URL.createObjectURL(file);
-  prev.src=url; prev.style.display='block';
-  btn.disabled=false;
-  btn._file=file;
+  if(!file) return;
+  const isImage = (file.type && file.type.startsWith('image/')) ||
+                  /\.(jpe?g|png|webp|bmp|tiff|tif|dcm)$/i.test(file.name);
+  if(!isImage){
+    alert('Please select a valid radiograph image (JPEG, PNG, WebP).');
+    return;
+  }
+
+  btn._file = file;
+  btn.disabled = false;
+  btn.classList.add('ready');
+  btn.innerHTML = '⚡ Analyze Radiograph';
+
+  prev.src = URL.createObjectURL(file);
+  fileName.textContent = file.name;
+  fileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+  dz.style.display = 'none';
+  previewCard.style.display = 'block';
+  rbox.style.display = 'none';
 }
 
-dz.addEventListener('click',()=>fi.click());
-fi.addEventListener('change',()=>handleFile(fi.files[0]));
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleFile(e.dataTransfer.files[0]);});
+dz.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  fi.value = '';
+  fi.click();
+});
 
-btn.addEventListener('click',async()=>{
+changeBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  fi.value = '';
+  fi.click();
+});
+
+fi.addEventListener('change', ()=>{
+  if(fi.files && fi.files[0]){
+    handleFile(fi.files[0]);
+  }
+});
+
+dz.addEventListener('dragover', e=>{
+  e.preventDefault();
+  dz.classList.add('drag');
+});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault();
+  dz.classList.remove('drag');
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]){
+    handleFile(e.dataTransfer.files[0]);
+  }
+});
+
+btn.addEventListener('click', async()=>{
   const file = btn._file;
   if(!file) return;
-  btn.disabled=true;
-  btn.textContent='Analysing…';
-  const fd=new FormData();
-  fd.append('file',file);
+
+  btn.disabled = true;
+  btn.classList.remove('ready');
+  btn.innerHTML = '⏳ Analyzing Radiograph...';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
   try{
-    const resp=await fetch('/predict',{method:'POST',body:fd});
-    const data=await resp.json();
-    rbox.style.display='block';
-    if(data.error){
-      rval.textContent='Error'; rval.className='result-val'; rconf.textContent=data.error;
+    const resp = await fetch('/predict', { method: 'POST', body: fd });
+    const data = await resp.json();
+    rbox.style.display = 'block';
+
+    if(!resp.ok || data.error || data.detail){
+      rval.textContent = 'Error';
+      rval.className = 'result-val pathology';
+      rconf.textContent = data.detail || data.error || 'Server error';
+      if(rtriage) rtriage.style.display = 'none';
     } else {
-      const isPath = data.prediction==='Pathology';
-      rval.textContent = data.prediction;
-      rval.className   = 'result-val '+(isPath?'pathology':'normal');
-      rconf.textContent= `Confidence: ${(data.confidence*100).toFixed(1)}%`;
-      // Auto-switch 3D mode
-      if(isPath) applyMode(2);
-      else       applyMode(0);
+      const isPath = Boolean(
+        data.pathology_detected ||
+        (data.prediction && (
+          data.prediction.toLowerCase().includes('pathology') ||
+          data.prediction.toLowerCase().includes('osteoporosis')
+        ))
+      );
+
+      rval.textContent = data.prediction || (isPath ? 'Osteoporosis Detected' : 'Normal Joint Architecture');
+      rval.className = 'result-val ' + (isPath ? 'pathology' : 'normal');
+
+      const confPct = ((data.confidence || 0.95) * 100).toFixed(1);
+      const probStr = (data.osteoporosis_probability !== undefined)
+        ? data.osteoporosis_probability.toFixed(3)
+        : '—';
+      rconf.innerHTML = `Confidence: <b>${confPct}%</b> · Pathology Prob: <b>${probStr}</b>`;
+
+      if(data.clinical_triage){
+        rtriage.textContent = data.clinical_triage + (data.clinical_action ? ' — ' + data.clinical_action : '');
+        rtriage.style.display = 'block';
+      }
+
+      // Synchronize 3D anatomical model with prediction
+      applyMode(isPath ? 2 : 0);
     }
-  } catch(e){
-    rval.textContent='Network error'; rval.className='result-val'; rconf.textContent=String(e);
-    rbox.style.display='block';
+  } catch(err){
+    rbox.style.display = 'block';
+    rval.textContent = 'Network Error';
+    rval.className = 'result-val pathology';
+    rconf.textContent = String(err.message || err);
+    if(rtriage) rtriage.style.display = 'none';
+  } finally {
+    btn.disabled = false;
+    btn.classList.add('ready');
+    btn.innerHTML = '⚡ Re-Analyze Radiograph';
   }
-  btn.disabled=false;
-  btn.textContent='Analyze Radiograph';
 });
 
 })(); // end IIFE
