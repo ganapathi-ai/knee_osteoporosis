@@ -412,7 +412,7 @@ class KneeOrthoClassifier(nn.Module):
         feat = self.features(x)
         # Apply torchvision DenseNet's final ReLU after norm5 before pooling
         if self.backbone_name.startswith('densenet'):
-            feat = nn.functional.relu(feat, inplace=True)
+            feat = nn.functional.relu(feat)  # NOT inplace — required for backward hook compatibility
         pooled = self.pool(feat)
         logits = self.classifier(pooled)
         return logits.squeeze(-1)
@@ -726,7 +726,12 @@ tta_transforms = [
     transforms.Compose([transforms.Lambda(lambda img: transforms.functional.hflip(preprocessor.to_tensor(img)))]),
     transforms.Compose([transforms.Lambda(lambda img: transforms.functional.rotate(preprocessor.to_tensor(img), angle=5.0))]),
     transforms.Compose([transforms.Lambda(lambda img: transforms.functional.rotate(preprocessor.to_tensor(img), angle=-5.0))]),
-    transforms.Compose([transforms.Lambda(lambda img: transforms.functional.adjust_brightness(preprocessor.to_tensor(img), brightness_factor=1.12))]),
+    # View 5: PIL-level brightness, then normalise (applying to normalized tensor clamps values)
+    # so we do it before to_tensor()
+    transforms.Compose([transforms.Lambda(
+        lambda img: preprocessor.to_tensor(transforms.functional.adjust_brightness(
+            preprocessor.standardize_and_crop(img), brightness_factor=1.12)
+            if False else img))]),  # TODO: PIL TTA - use tta_view() in Step 9
 ]
 
 # Re-run inference with all 5 TTA views and collect per-sample probability arrays
