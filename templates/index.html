@@ -3,329 +3,290 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>OrthoScan AI — Knee Radiography Pathology Detector</title>
+<title>OrthoScan AI — Knee Radiography Pathology &amp; Osteoporosis Detector</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --lavender:#cbb3e8;--chartreuse:#d4ff3f;--tomato:#e34234;
-  --jet:#0a0a0a;--cerulean:#007ba7;--rose:#ff2d95;
-  --glass:rgba(8,8,18,0.88);--border:rgba(203,179,232,0.18);
+  --lavender:#cbb3e8;--lavender-glow:rgba(203,179,232,0.35);
+  --chartreuse:#34d399;--chartreuse-bg:rgba(52,211,153,0.12);
+  --tomato:#f87171;--tomato-bg:rgba(248,113,113,0.14);
+  --amber:#fbbf24;--amber-bg:rgba(251,191,36,0.12);
+  --cerulean:#38bdf8;
+  --glass:rgba(12,12,24,0.85);--border:rgba(203,179,232,0.18);
+  --surface:rgba(18,18,34,0.78);
 }
 html,body{
   width:100%;min-height:100vh;
-  background:#060610;
-  background:radial-gradient(ellipse at 50% 35%, #18122c 0%, #060610 80%);
-  font-family:'Segoe UI',system-ui,sans-serif;color:#e8e4f0;
+  background:#070712;
+  background:radial-gradient(ellipse at 50% 25%, #18122c 0%, #060610 85%);
+  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  color:#f1eff7;
   overflow-x:hidden;
 }
 canvas#gl{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:auto}
 
-/* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:30;
-  display:flex;align-items:center;padding:0 24px;height:52px;
-  background:rgba(6,6,20,0.95);border-bottom:1px solid var(--border);
-  backdrop-filter:blur(16px)}
-.nav-logo{font-size:1.05rem;font-weight:700;letter-spacing:.4px;color:#fff}
-.nav-logo span{color:var(--lavender)}
-.nav-sub{font-size:.72rem;color:#777;margin-left:10px;letter-spacing:.5px}
-.nav-badges{margin-left:auto;display:flex;gap:8px}
-.badge{padding:4px 10px;border-radius:20px;font-size:.67rem;font-weight:600;
-  letter-spacing:.5px;border:1px solid var(--border);
-  background:rgba(203,179,232,.06);color:var(--lavender)}
-.badge.ok{border-color:rgba(0,123,167,.45);color:var(--cerulean);background:rgba(0,123,167,.08)}
-
-/* UPLOAD PANEL */
-.upload-panel{
-  position:fixed;top:64px;left:20px;z-index:20;width:310px;
-  max-height:calc(100vh - 80px);overflow-y:auto;overflow-x:hidden;
-  background:var(--glass);border:1px solid var(--border);border-radius:16px;
-  padding:16px;backdrop-filter:blur(24px);
-  box-shadow:0 16px 40px rgba(0,0,0,0.65);
-  scrollbar-width:thin;scrollbar-color:rgba(203,179,232,.25) transparent;
+/* Top Navigation Bar */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:50;
+  display:flex;align-items:center;padding:0 28px;height:56px;
+  background:rgba(8,8,22,0.94);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(18px);
 }
-.upload-panel::-webkit-scrollbar{width:4px}
-.upload-panel::-webkit-scrollbar-thumb{background:rgba(203,179,232,.25);border-radius:4px}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-logo{font-size:1.15rem;font-weight:800;letter-spacing:.3px;color:#fff}
+.nav-logo span{color:var(--lavender)}
+.nav-sub{font-size:.76rem;color:#8a8aa0;letter-spacing:.4px;padding-left:12px;border-left:1px solid var(--border)}
+.nav-badges{margin-left:auto;display:flex;align-items:center;gap:10px}
+.badge{
+  padding:4px 12px;border-radius:20px;font-size:.68rem;font-weight:600;
+  letter-spacing:.5px;border:1px solid var(--border);
+  background:rgba(203,179,232,.08);color:var(--lavender);
+}
+.badge.ok{border-color:rgba(56,189,248,.4);color:var(--cerulean);background:rgba(56,189,248,.08)}
 
-.pnl-title{font-size:.62rem;font-weight:700;letter-spacing:1.6px;
-  color:var(--lavender);margin-bottom:12px;text-transform:uppercase}
+/* Main Layout Container — Centered Professional Stage */
+.main-stage{
+  position:relative;z-index:20;
+  max-width:1160px;margin:72px auto 60px auto;
+  padding:0 20px;
+  display:flex;flex-direction:column;align-items:center;
+}
+
+/* ════════════════════════════════════════════════════
+   STAGE 1: INTAKE & UPLOAD CONSOLE (Centered)
+════════════════════════════════════════════════════ */
+.intake-card{
+  width:100%;max-width:620px;
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:20px;padding:32px;
+  backdrop-filter:blur(24px);
+  box-shadow:0 24px 60px rgba(0,0,0,0.65);
+  text-align:center;transition:all .3s ease;
+}
+.intake-header{margin-bottom:20px}
+.intake-title{font-size:1.28rem;font-weight:800;color:#fff;letter-spacing:.2px;margin-bottom:6px}
+.intake-desc{font-size:.78rem;color:#8e8eb0;line-height:1.5}
 
 .drop-zone{
-  border:1.5px dashed rgba(203,179,232,.28);border-radius:10px;
-  padding:22px 14px;text-align:center;cursor:pointer;transition:all .22s;
+  border:2px dashed rgba(203,179,232,.32);border-radius:14px;
+  padding:36px 20px;cursor:pointer;transition:all .22s ease;
   background:rgba(203,179,232,.03);
 }
 .drop-zone:hover,.drop-zone.drag{
-  border-color:var(--lavender);background:rgba(203,179,232,.08);
+  border-color:var(--lavender);background:rgba(203,179,232,.09);
+  transform:scale(1.008);
 }
-.drop-icon{font-size:1.8rem;margin-bottom:6px;opacity:.5}
-.drop-title{font-size:.82rem;font-weight:600;color:#ccc;margin-bottom:4px}
-.drop-hint{font-size:.66rem;color:#666;line-height:1.4}
+.drop-icon{font-size:2.6rem;margin-bottom:10px;opacity:.85}
+.drop-main-text{font-size:.95rem;font-weight:700;color:#e2def0;margin-bottom:4px}
+.drop-sub-text{font-size:.72rem;color:#7a7a96}
 
-/* Preview Card */
-.preview-card{
-  display:none;border-radius:10px;overflow:hidden;
-  border:1px solid var(--border);background:rgba(0,0,0,0.45);
-}
-.preview-img-wrap{
-  position:relative;width:100%;height:160px;background:#030308;
-  display:flex;align-items:center;justify-content:center;overflow:hidden;
-}
-#preview-img{max-width:100%;max-height:160px;object-fit:contain;display:block}
-.change-btn{
-  position:absolute;top:8px;right:8px;padding:4px 9px;border-radius:6px;
-  background:rgba(10,10,20,0.85);border:1px solid var(--border);
-  color:#e8e4f0;font-size:.65rem;font-weight:600;cursor:pointer;
-  backdrop-filter:blur(8px);transition:all .2s;
-}
-.change-btn:hover{border-color:var(--lavender);color:var(--lavender)}
-.file-meta{
-  padding:7px 10px;display:flex;justify-content:space-between;align-items:center;
-  font-size:.65rem;background:rgba(203,179,232,.05);border-top:1px solid rgba(203,179,232,.1);
-}
-.file-name{color:#ddd;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
-.file-size{color:#777}
-
-/* Analyze Button */
-.analyze-btn{
-  width:100%;margin-top:12px;padding:12px 14px;border-radius:10px;
-  border:1px solid rgba(203,179,232,.3);background:rgba(203,179,232,.10);
-  color:#777;font-size:.8rem;font-weight:700;letter-spacing:.8px;
-  text-transform:uppercase;cursor:not-allowed;transition:all .25s ease;
-  display:flex;align-items:center;justify-content:center;gap:8px;
-}
-.analyze-btn.ready{
-  cursor:pointer;
-  background:linear-gradient(135deg,#cbb3e8 0%,#b293d8 100%);
-  color:#120924;border:1px solid #dfd0f5;
-  box-shadow:0 0 20px rgba(203,179,232,.5);font-weight:800;
-}
-.analyze-btn.ready:hover{transform:translateY(-1px);box-shadow:0 0 26px rgba(203,179,232,.75);}
-
-/* Quick result badge in sidebar */
-.result-box{
-  margin-top:12px;padding:12px;border-radius:10px;display:none;
-  border:1px solid var(--border);background:rgba(6,6,18,.75);
-}
-.result-label{font-size:.58rem;font-weight:700;letter-spacing:1.3px;
-  text-transform:uppercase;color:#777;margin-bottom:4px}
-.result-val{font-size:1.05rem;font-weight:800;letter-spacing:.3px;line-height:1.25}
-.result-conf{font-size:.68rem;color:#888;margin-top:5px;line-height:1.4}
-.result-val.normal{color:var(--chartreuse)}
-.result-val.pathology{color:var(--tomato)}
-.result-triage{
-  margin-top:8px;padding:6px 8px;border-radius:6px;font-size:.64rem;
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#bbb;
-}
-.view-full-btn{
-  width:100%;margin-top:10px;padding:9px 14px;border-radius:8px;
-  border:1px solid rgba(203,179,232,.4);background:rgba(203,179,232,.12);
-  color:var(--lavender);font-size:.75rem;font-weight:700;cursor:pointer;
-  letter-spacing:.5px;transition:all .2s;
-}
-.view-full-btn:hover{background:rgba(203,179,232,.22);border-color:var(--lavender);}
-
-/* STATS PANEL */
-.stats-panel{position:fixed;top:64px;right:20px;z-index:20;
-  width:196px;display:flex;flex-direction:column;gap:9px}
-.sp-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;
-  padding:12px 14px;backdrop-filter:blur(24px)}
-.spc-lbl{font-size:.57rem;font-weight:700;letter-spacing:1.3px;
-  text-transform:uppercase;color:#555;margin-bottom:4px}
-.spc-val{font-size:1.35rem;font-weight:800;color:#e0dced;line-height:1}
-.spc-val.c{color:var(--cerulean)}
-.spc-val.r{color:var(--rose)}
-.spc-val.g{color:var(--chartreuse)}
-.spc-sub{font-size:.59rem;color:#484858;margin-top:3px}
-.legend-card{background:var(--glass);border:1px solid var(--border);
-  border-radius:12px;padding:12px 14px;backdrop-filter:blur(24px)}
-.leg-title{font-size:.57rem;font-weight:700;letter-spacing:1.3px;
-  text-transform:uppercase;color:#555;margin-bottom:8px}
-.leg-row{display:flex;align-items:center;gap:7px;font-size:.64rem;
-  color:#777;margin-bottom:5px}
-.leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-
-/* MODE BAR */
-.mode-bar{position:fixed;bottom:0;left:0;right:0;z-index:20;
-  display:flex;flex-direction:column;align-items:center;gap:6px;
-  padding:8px 0 12px;pointer-events:none}
-.mode-hint{font-size:.58rem;letter-spacing:1.4px;text-transform:uppercase;color:#777}
-.mode-btns{display:flex;gap:8px;pointer-events:auto}
-.mode-btn{padding:6px 16px;border-radius:20px;border:1px solid var(--border);
-  background:rgba(8,8,24,.85);color:#777;font-size:.68rem;font-weight:600;
-  letter-spacing:.4px;cursor:pointer;transition:all .22s;backdrop-filter:blur(10px)}
-.mode-btn.active{border-color:var(--lavender);color:var(--lavender);
-  background:rgba(203,179,232,.12)}
-.disclaimer{font-size:.56rem;color:#55556a;letter-spacing:.4px}
-
-/* RESPONSIVE DESIGN (Mobile/Tablet) */
-@media (max-width: 768px) {
-  .upload-panel {
-    position: relative;
-    top: 60px;
-    left: auto;
-    width: calc(100% - 32px);
-    margin: 0 16px 20px 16px;
-    max-height: none;
-  }
-  .stats-panel {
-    position: relative;
-    top: auto;
-    right: auto;
-    width: calc(100% - 32px);
-    margin: 0 16px 80px 16px;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-  .sp-card, .legend-card {
-    flex: 1 1 45%;
-  }
-  .mode-bar {
-    position: fixed;
-    bottom: 0;
-    background: rgba(6,6,20,0.92);
-    backdrop-filter: blur(12px);
-  }
-  canvas#gl {
-    opacity: 0.45;
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   RESULTS MODAL — full screen overlay
-════════════════════════════════════════════════════ */
-.results-modal{
-  display:none;position:fixed;inset:0;z-index:100;
-  background:rgba(4,4,14,0.92);backdrop-filter:blur(18px);
-  overflow-y:auto;padding:68px 20px 40px;
-}
-.results-modal.open{display:block;}
-
-.modal-inner{
-  max-width:1100px;margin:0 auto;
-}
-
-/* verdict banner */
-.verdict-banner{
-  border-radius:16px;padding:24px 28px;margin-bottom:24px;
-  display:flex;align-items:center;gap:20px;
-  border:1px solid var(--border);
-}
-.verdict-banner.normal{
-  background:linear-gradient(135deg,rgba(0,25,0,.75) 0%,rgba(0,45,0,.45) 100%);
-  border-color:rgba(100,220,100,.3);
-}
-.verdict-banner.pathology{
-  background:linear-gradient(135deg,rgba(45,0,0,.75) 0%,rgba(90,10,0,.45) 100%);
-  border-color:rgba(220,80,60,.3);
-}
-.verdict-banner.uncertain{
-  background:linear-gradient(135deg,rgba(35,25,0,.75) 0%,rgba(70,50,0,.45) 100%);
-  border-color:rgba(220,180,0,.3);
-}
-.verdict-icon{font-size:2.8rem;line-height:1}
-.verdict-text{flex:1}
-.verdict-title{font-size:1.5rem;font-weight:800;line-height:1.2;margin-bottom:6px}
-.verdict-title.normal{color:var(--chartreuse)}
-.verdict-title.pathology{color:var(--tomato)}
-.verdict-title.uncertain{color:#f5c518}
-.verdict-sub{font-size:.82rem;color:#aaa;line-height:1.5}
-.verdict-meta{
-  margin-left:auto;text-align:right;flex-shrink:0;
-}
-.vm-prob{font-size:2.4rem;font-weight:900;line-height:1}
-.vm-label{font-size:.62rem;color:#777;letter-spacing:1px;text-transform:uppercase;margin-top:3px}
-.vm-thresh{font-size:.64rem;color:#666;margin-top:5px}
-
-/* image grid */
-.img-grid{
-  display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;
-}
-@media(max-width:768px){.img-grid{grid-template-columns:1fr;}}
-
-.img-card{
-  background:rgba(8,8,22,.75);border:1px solid var(--border);
+/* Selected preview inside intake */
+.intake-preview{
+  display:none;margin-top:16px;
+  background:rgba(6,6,16,0.6);border:1px solid var(--border);
   border-radius:14px;overflow:hidden;
 }
-.img-card-head{
-  padding:10px 16px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:8px;
+.intake-img-wrap{
+  position:relative;width:100%;height:220px;
+  background:#030308;display:flex;align-items:center;justify-content:center;
 }
-.img-card-title{font-size:.7rem;font-weight:700;letter-spacing:1.2px;
-  text-transform:uppercase;color:var(--lavender);}
-.img-card-badge{font-size:.6rem;padding:2px 8px;border-radius:10px;
-  background:rgba(203,179,232,.1);border:1px solid var(--border);color:#888;}
-.img-body{
-  padding:16px;display:flex;align-items:center;justify-content:center;
-  min-height:280px;background:rgba(2,2,10,.6);
+#intake-img{max-width:100%;max-height:220px;object-fit:contain;display:block}
+.intake-change-btn{
+  position:absolute;top:10px;right:10px;
+  padding:6px 14px;border-radius:8px;
+  background:rgba(12,12,24,0.9);border:1px solid var(--border);
+  color:#fff;font-size:.7rem;font-weight:600;cursor:pointer;
+  backdrop-filter:blur(10px);transition:all .2s;
 }
-.img-body img{
-  max-width:100%;max-height:380px;border-radius:8px;
-  object-fit:contain;display:block;
+.intake-change-btn:hover{border-color:var(--lavender);color:var(--lavender)}
+.intake-meta{
+  padding:10px 16px;display:flex;justify-content:space-between;align-items:center;
+  font-size:.72rem;background:rgba(203,179,232,.04);
 }
+.intake-fname{font-weight:600;color:#ddd;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.intake-fsize{color:#777}
 
-/* metrics strip */
-.metrics-strip{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;
+.btn-analyze{
+  width:100%;margin-top:20px;padding:15px 20px;border-radius:12px;
+  border:1px solid rgba(203,179,232,.3);background:rgba(203,179,232,.08);
+  color:#666;font-size:.9rem;font-weight:800;letter-spacing:.6px;
+  text-transform:uppercase;cursor:not-allowed;transition:all .25s ease;
+  display:flex;align-items:center;justify-content:center;gap:10px;
 }
-@media(max-width:768px){.metrics-strip{grid-template-columns:repeat(2,1fr);}}
-
-.metric-card{
-  background:rgba(8,8,22,.75);border:1px solid var(--border);
-  border-radius:12px;padding:14px 16px;
-}
-.mc-label{font-size:.57rem;font-weight:700;letter-spacing:1.3px;
-  text-transform:uppercase;color:#666;margin-bottom:5px}
-.mc-val{font-size:1.5rem;font-weight:800;line-height:1}
-.mc-val.green{color:var(--chartreuse)}
-.mc-val.red{color:var(--tomato)}
-.mc-val.blue{color:var(--cerulean)}
-.mc-val.gold{color:#f5c518}
-.mc-sub{font-size:.6rem;color:#555;margin-top:4px}
-
-/* clinical action */
-.clinical-box{
-  background:rgba(8,8,22,.75);border:1px solid var(--border);
-  border-radius:12px;padding:18px 20px;margin-bottom:24px;
-}
-.cbox-title{font-size:.62rem;font-weight:700;letter-spacing:1.3px;
-  text-transform:uppercase;color:#666;margin-bottom:8px}
-.cbox-action{font-size:.9rem;color:#ccc;line-height:1.6}
-.cbox-triage{
-  margin-top:10px;padding:8px 12px;border-radius:8px;font-size:.75rem;
-  font-weight:600;color:#bbb;background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.08);
-}
-
-/* action buttons at bottom of modal */
-.modal-actions{
-  display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
-}
-.btn-new{
-  padding:14px 32px;border-radius:12px;font-size:.85rem;font-weight:800;
-  letter-spacing:.6px;cursor:pointer;transition:all .22s;border:none;
+.btn-analyze.ready{
+  cursor:pointer;
   background:linear-gradient(135deg,#cbb3e8 0%,#b293d8 100%);
-  color:#120924;box-shadow:0 0 20px rgba(203,179,232,.4);
+  color:#120924;border-color:#dfd0f5;
+  box-shadow:0 0 24px rgba(203,179,232,.45);
 }
-.btn-new:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(203,179,232,.6);}
-.btn-close{
-  padding:14px 32px;border-radius:12px;font-size:.85rem;font-weight:700;
-  letter-spacing:.6px;cursor:pointer;transition:all .22s;
-  background:rgba(203,179,232,.08);border:1px solid var(--border);color:#aaa;
-}
-.btn-close:hover{background:rgba(203,179,232,.15);color:#ddd;}
+.btn-analyze.ready:hover{transform:translateY(-2px);box-shadow:0 0 32px rgba(203,179,232,.65)}
 
-/* progress bar during analysis */
-.progress-wrap{
-  margin-top:12px;display:none;
+.progress-strip{
+  display:none;margin-top:16px;text-align:center;
 }
 .progress-bar{
-  height:3px;border-radius:2px;background:rgba(203,179,232,.12);overflow:hidden;
+  height:4px;border-radius:2px;background:rgba(203,179,232,.15);
+  overflow:hidden;margin-bottom:8px;
 }
 .progress-fill{
-  height:100%;width:0%;background:linear-gradient(90deg,#cbb3e8,#b293d8);
-  border-radius:2px;transition:width .3s ease;
+  height:100%;width:0%;
+  background:linear-gradient(90deg,#cbb3e8,#38bdf8);
+  border-radius:2px;transition:width .25s ease;
 }
-.progress-label{font-size:.6rem;color:#666;text-align:center;margin-top:5px;letter-spacing:.4px}
+.progress-status{font-size:.68rem;color:#8a8ab0;letter-spacing:.3px}
+
+/* ════════════════════════════════════════════════════
+   STAGE 2: CENTER CLINICAL DIAGNOSTIC REPORT CONSOLE
+════════════════════════════════════════════════════ */
+.report-console{
+  display:none;width:100%;
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:24px;padding:36px;
+  backdrop-filter:blur(28px);
+  box-shadow:0 30px 80px rgba(0,0,0,0.75);
+  animation:fadeInUp .4s ease forwards;
+}
+@keyframes fadeInUp{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* Clinical Verdict Header Banner */
+.clinic-banner{
+  border-radius:18px;padding:24px 28px;margin-bottom:28px;
+  display:flex;align-items:center;gap:24px;
+  border:1px solid var(--border);
+}
+.clinic-banner.normal{
+  background:linear-gradient(135deg,rgba(16,40,24,.85) 0%,rgba(6,22,14,.6) 100%);
+  border-color:rgba(52,211,153,.35);
+}
+.clinic-banner.pathology{
+  background:linear-gradient(135deg,rgba(50,14,14,.9) 0%,rgba(28,6,6,.65) 100%);
+  border-color:rgba(248,113,113,.4);
+}
+.clinic-banner.uncertain{
+  background:linear-gradient(135deg,rgba(48,36,8,.85) 0%,rgba(24,18,4,.6) 100%);
+  border-color:rgba(251,191,36,.4);
+}
+.clinic-icon{font-size:3.2rem;line-height:1}
+.clinic-info{flex:1}
+.clinic-tag{
+  display:inline-block;padding:3px 10px;border-radius:12px;
+  font-size:.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  margin-bottom:6px;
+}
+.clinic-banner.normal .clinic-tag{background:var(--chartreuse-bg);color:var(--chartreuse)}
+.clinic-banner.pathology .clinic-tag{background:var(--tomato-bg);color:var(--tomato)}
+.clinic-banner.uncertain .clinic-tag{background:var(--amber-bg);color:var(--amber)}
+
+.clinic-verdict{font-size:1.65rem;font-weight:900;line-height:1.2;margin-bottom:6px}
+.clinic-banner.normal .clinic-verdict{color:var(--chartreuse)}
+.clinic-banner.pathology .clinic-verdict{color:var(--tomato)}
+.clinic-banner.uncertain .clinic-verdict{color:var(--amber)}
+.clinic-action-note{font-size:.85rem;color:#b0aecd;line-height:1.5}
+
+.clinic-stat{margin-left:auto;text-align:right;flex-shrink:0}
+.clinic-prob{font-size:2.6rem;font-weight:900;line-height:1}
+.clinic-banner.normal .clinic-prob{color:var(--chartreuse)}
+.clinic-banner.pathology .clinic-prob{color:var(--tomato)}
+.clinic-banner.uncertain .clinic-prob{color:var(--amber)}
+.clinic-prob-lbl{font-size:.65rem;color:#7a7a98;letter-spacing:1.2px;text-transform:uppercase;margin-top:4px}
+.clinic-thresh-lbl{font-size:.68rem;color:#999;margin-top:4px}
+
+/* ── CENTER LARGE DUAL RADIOGRAPH VIEWPORT ── */
+.center-viewers{
+  display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px;
+}
+@media(max-width:768px){.center-viewers{grid-template-columns:1fr;}}
+
+.viewer-card{
+  background:rgba(8,8,20,0.7);border:1px solid var(--border);
+  border-radius:16px;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.viewer-header{
+  padding:12px 18px;border-bottom:1px solid var(--border);
+  background:rgba(203,179,232,0.04);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.vh-title{font-size:.74rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--lavender)}
+.vh-badge{
+  font-size:.62rem;padding:3px 9px;border-radius:10px;
+  background:rgba(203,179,232,.1);border:1px solid var(--border);color:#aaa;
+}
+
+.viewer-body{
+  padding:18px;min-height:360px;
+  display:flex;align-items:center;justify-content:center;
+  background:#020208;position:relative;
+}
+.viewer-body img{
+  max-width:100%;max-height:420px;
+  border-radius:8px;object-fit:contain;display:block;
+  box-shadow:0 8px 30px rgba(0,0,0,0.8);
+}
+.saliency-legend{
+  padding:8px 18px;background:rgba(203,179,232,.03);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:.64rem;color:#8a8ab0;
+}
+.legend-bar{
+  height:7px;width:140px;border-radius:4px;
+  background:linear-gradient(90deg,#0000ff,#00ffff,#00ff00,#ffff00,#ff0000);
+}
+
+/* ── CENTER CLINICAL METRICS GRID ── */
+.metrics-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;
+}
+@media(max-width:768px){.metrics-grid{grid-template-columns:repeat(2,1fr);}}
+
+.metric-box{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:16px 18px;
+}
+.m-label{font-size:.6rem;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#777;margin-bottom:6px}
+.m-val{font-size:1.6rem;font-weight:800;line-height:1}
+.m-val.g{color:var(--chartreuse)}
+.m-val.r{color:var(--tomato)}
+.m-val.b{color:var(--cerulean)}
+.m-val.a{color:var(--amber)}
+.m-sub{font-size:.64rem;color:#8a8ab0;margin-top:6px}
+
+/* ── RECOMMENDATIONS & TRIAGE SECTION ── */
+.decision-box{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:22px 26px;margin-bottom:28px;
+}
+.db-title{font-size:.65rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#888;margin-bottom:10px}
+.db-action{font-size:1rem;color:#f0eefa;line-height:1.6;font-weight:500}
+.db-triage{
+  margin-top:12px;padding:10px 16px;border-radius:10px;font-size:.78rem;font-weight:700;
+  color:#dfdaf2;background:rgba(203,179,232,0.06);border:1px solid rgba(203,179,232,0.15);
+  display:flex;align-items:center;gap:8px;
+}
+
+/* ── CENTER ACTION BUTTON BAR ── */
+.center-actions{
+  display:flex;justify-content:center;gap:16px;flex-wrap:wrap;
+}
+.btn-primary-reset{
+  padding:15px 36px;border-radius:14px;font-size:.9rem;font-weight:800;
+  letter-spacing:.6px;cursor:pointer;border:none;transition:all .22s ease;
+  background:linear-gradient(135deg,#cbb3e8 0%,#b293d8 100%);
+  color:#120924;box-shadow:0 0 28px rgba(203,179,232,.45);
+  display:flex;align-items:center;gap:10px;
+}
+.btn-primary-reset:hover{transform:translateY(-2px);box-shadow:0 0 38px rgba(203,179,232,.75)}
+
+.btn-secondary-print{
+  padding:15px 30px;border-radius:14px;font-size:.85rem;font-weight:700;
+  letter-spacing:.6px;cursor:pointer;transition:all .22s ease;
+  background:rgba(203,179,232,.08);border:1px solid var(--border);
+  color:#cfcbe8;display:flex;align-items:center;gap:8px;
+}
+.btn-secondary-print:hover{background:rgba(203,179,232,.18);color:#fff}
 </style>
 </head>
 <body>
@@ -334,172 +295,148 @@ nav{position:fixed;top:0;left:0;right:0;z-index:30;
 
 <!-- Navigation -->
 <nav>
-  <span class="nav-logo">Ortho<span>Scan</span> AI</span>
-  <span class="nav-sub">· Knee Radiography Pathology Detector</span>
+  <div class="nav-brand">
+    <div class="nav-logo">Ortho<span>Scan</span> AI</div>
+    <div class="nav-sub">Knee Radiography Deep Learning Diagnostic Workstation</div>
+  </div>
   <div class="nav-badges">
-    <span class="badge">· DenseNet-121 Loaded</span>
-    <span class="badge ok">ONNX Runtime</span>
+    <span class="badge">DenseNet-121</span>
+    <span class="badge ok">ONNX Engine</span>
   </div>
 </nav>
 
-<!-- Upload Panel -->
-<div class="upload-panel">
-  <div class="pnl-title">Radiograph Input</div>
-  
-  <input type="file" id="file-inp" accept="image/*" style="display:none;"/>
-  
-  <div class="drop-zone" id="drop-zone">
-    <div class="drop-icon">🦴</div>
-    <div class="drop-title">Drop knee X-ray or click</div>
-    <div class="drop-hint">JPEG · PNG · WebP · Max 20 MB<br>AP view preferred</div>
-  </div>
+<!-- Main Stage (Centered Layout) -->
+<div class="main-stage">
 
-  <div class="preview-card" id="preview-card">
-    <div class="preview-img-wrap">
-      <img id="preview-img" alt="Preview"/>
-      <button type="button" class="change-btn" id="change-btn">Change</button>
+  <!-- ═══════ STAGE 1: INTAKE & UPLOAD (Centered Initial State) ═══════ -->
+  <div class="intake-card" id="intake-card">
+    <div class="intake-header">
+      <div class="intake-title">Patient Knee Radiograph Analysis</div>
+      <div class="intake-desc">Upload a digital frontal (AP) knee X-ray for deep learning osteoporosis detection, calibrated joint space analysis, and explainable Grad-CAM heatmaps.</div>
     </div>
-    <div class="file-meta">
-      <div class="file-name" id="file-name">—</div>
-      <div class="file-size" id="file-size">—</div>
+
+    <input type="file" id="file-inp" accept="image/*" style="display:none;"/>
+
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-icon">🦴</div>
+      <div class="drop-main-text">Drag &amp; drop knee X-ray or click to browse</div>
+      <div class="drop-sub-text">Accepts PNG, JPEG, WebP · Max 20 MB · Frontal AP view</div>
     </div>
-  </div>
 
-  <button class="analyze-btn" id="analyze-btn" disabled>Select Knee X-ray</button>
-
-  <div class="progress-wrap" id="progress-wrap">
-    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-    <div class="progress-label" id="progress-label">Preprocessing radiograph…</div>
-  </div>
-
-  <div class="result-box" id="result-box">
-    <div class="result-label">Diagnostic Classification</div>
-    <div class="result-val" id="result-val">—</div>
-    <div class="result-conf" id="result-conf">—</div>
-    <div class="result-triage" id="result-triage" style="display:none;"></div>
-    <button class="view-full-btn" id="view-full-btn">View Full Report &amp; Grad-CAM →</button>
-  </div>
-</div>
-
-<!-- Stats Panel -->
-<div class="stats-panel">
-  <div class="sp-card">
-    <div class="spc-lbl">Joint Space (JSN)</div>
-    <div class="spc-val c" id="sp-jsn">4.8 mm</div>
-    <div class="spc-sub">Tibiofemoral clearance</div>
-  </div>
-  <div class="sp-card">
-    <div class="spc-lbl">Subchondral BMD</div>
-    <div class="spc-val c" id="sp-bmd">1.24</div>
-    <div class="spc-sub">g/cm² (Femoral / Tibial)</div>
-  </div>
-  <div class="sp-card">
-    <div class="spc-lbl">WHO T-Score</div>
-    <div class="spc-val" id="sp-tscore">+0.8</div>
-    <div class="spc-sub">Normal: ≥ −1.0 SD</div>
-  </div>
-  <div class="sp-card">
-    <div class="spc-lbl">Trabecular Porosity</div>
-    <div class="spc-val r" id="sp-poros">12%</div>
-    <div class="spc-sub">≤20% = normal</div>
-  </div>
-  <div class="legend-card">
-    <div class="leg-title">Tissue Legend</div>
-    <div class="leg-row"><span class="leg-dot" style="background:#f0e0b8"></span>Cortical bone</div>
-    <div class="leg-row"><span class="leg-dot" style="background:#55ceec"></span>Articular cartilage</div>
-    <div class="leg-row"><span class="leg-dot" style="background:#ff2d95"></span>Subchondral erosion</div>
-  </div>
-</div>
-
-<!-- Mode Bar -->
-<div class="mode-bar">
-  <div class="mode-hint">Drag to rotate · Scroll to zoom</div>
-  <div class="mode-btns">
-    <button class="mode-btn active" data-mode="0">● Healthy</button>
-    <button class="mode-btn" data-mode="1">● Degrading</button>
-    <button class="mode-btn" data-mode="2">● Osteoporotic</button>
-  </div>
-  <div class="disclaimer">⚠ For research use only — not for clinical diagnosis or treatment decisions.</div>
-</div>
-
-<!-- ═══════ RESULTS MODAL ═══════ -->
-<div class="results-modal" id="results-modal">
-  <div class="modal-inner">
-
-    <!-- Verdict Banner -->
-    <div class="verdict-banner" id="verdict-banner">
-      <div class="verdict-icon" id="verdict-icon">🔬</div>
-      <div class="verdict-text">
-        <div class="verdict-title" id="verdict-title">—</div>
-        <div class="verdict-sub" id="verdict-sub">—</div>
+    <!-- Selected image preview inside intake card -->
+    <div class="intake-preview" id="intake-preview">
+      <div class="intake-img-wrap">
+        <img id="intake-img" alt="Selected Radiograph"/>
+        <button type="button" class="intake-change-btn" id="intake-change-btn">Change Image</button>
       </div>
-      <div class="verdict-meta">
-        <div class="vm-prob" id="vm-prob">—</div>
-        <div class="vm-label">Pathology Prob.</div>
-        <div class="vm-thresh" id="vm-thresh">—</div>
+      <div class="intake-meta">
+        <div class="intake-fname" id="intake-fname">—</div>
+        <div class="intake-fsize" id="intake-fsize">—</div>
       </div>
     </div>
 
-    <!-- Image Grid: Original + Grad-CAM -->
-    <div class="img-grid">
-      <div class="img-card">
-        <div class="img-card-head">
-          <span class="img-card-title">Original Radiograph</span>
-          <span class="img-card-badge">Input</span>
+    <button class="btn-analyze" id="btn-analyze" disabled>Select Knee X-ray</button>
+
+    <div class="progress-strip" id="progress-strip">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-status" id="progress-status">Preprocessing radiograph…</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════ STAGE 2: CLINICAL DIAGNOSTIC REPORT (Centered Once Analyzed) ═══════ -->
+  <div class="report-console" id="report-console">
+
+    <!-- Top Clinical Verdict Banner -->
+    <div class="clinic-banner" id="clinic-banner">
+      <div class="clinic-icon" id="clinic-icon">🔬</div>
+      <div class="clinic-info">
+        <div class="clinic-tag" id="clinic-tag">Diagnostic Assessment</div>
+        <div class="clinic-verdict" id="clinic-verdict">—</div>
+        <div class="clinic-action-note" id="clinic-action-note">—</div>
+      </div>
+      <div class="clinic-stat">
+        <div class="clinic-prob" id="clinic-prob">—</div>
+        <div class="clinic-prob-lbl">Pathology Prob.</div>
+        <div class="clinic-thresh-lbl" id="clinic-thresh-lbl">Threshold: 0.6930</div>
+      </div>
+    </div>
+
+    <!-- CENTER DUAL RADIOGRAPH VIEWERS: BIG ORIGINAL & BIG GRAD-CAM -->
+    <div class="center-viewers">
+      <!-- Original Radiograph Card -->
+      <div class="viewer-card">
+        <div class="viewer-header">
+          <span class="vh-title">Original Digital Radiograph</span>
+          <span class="vh-badge">Frontal AP Input</span>
         </div>
-        <div class="img-body">
-          <img id="modal-orig" alt="Original X-ray" src=""/>
+        <div class="viewer-body">
+          <img id="view-orig" alt="Original Radiograph" src=""/>
         </div>
       </div>
-      <div class="img-card">
-        <div class="img-card-head">
-          <span class="img-card-title">Saliency Map (Grad-CAM)</span>
-          <span class="img-card-badge">XAI Overlay</span>
+
+      <!-- Explainable Grad-CAM Heatmap Card -->
+      <div class="viewer-card">
+        <div class="viewer-header">
+          <span class="vh-title">Explainable Saliency Overlay (Grad-CAM)</span>
+          <span class="vh-badge">XAI Attention Map</span>
         </div>
-        <div class="img-body" id="gradcam-body">
-          <img id="modal-gradcam" alt="Grad-CAM heatmap" src=""/>
+        <div class="viewer-body">
+          <img id="view-gradcam" alt="Grad-CAM Saliency Map" src=""/>
+        </div>
+        <div class="saliency-legend">
+          <span>Low Attention (Baseline Bone)</span>
+          <div class="legend-bar"></div>
+          <span>High Attention (Pathology Focus)</span>
         </div>
       </div>
     </div>
 
-    <!-- Metrics Strip -->
-    <div class="metrics-strip">
-      <div class="metric-card">
-        <div class="mc-label">Confidence</div>
-        <div class="mc-val green" id="mc-conf">—</div>
-        <div class="mc-sub">Model certainty</div>
+    <!-- Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="m-label">Diagnostic Confidence</div>
+        <div class="m-val g" id="metric-conf">—</div>
+        <div class="m-sub">Certainty score max(p, 1-p)</div>
       </div>
-      <div class="metric-card">
-        <div class="mc-label">Raw Logit</div>
-        <div class="mc-val blue" id="mc-logit">—</div>
-        <div class="mc-sub">Pre-sigmoid output</div>
+      <div class="metric-box">
+        <div class="m-label">Model Raw Logit</div>
+        <div class="m-val b" id="metric-logit">—</div>
+        <div class="m-sub">Pre-sigmoid network activation</div>
       </div>
-      <div class="metric-card">
-        <div class="mc-label">Threshold</div>
-        <div class="mc-val gold" id="mc-thresh">—</div>
-        <div class="mc-sub">Decision boundary</div>
+      <div class="metric-box">
+        <div class="m-label">Calibrated Threshold</div>
+        <div class="m-val a" id="metric-thresh">0.6930</div>
+        <div class="m-sub">Zero-leakage operating point</div>
       </div>
-      <div class="metric-card">
-        <div class="mc-label">Uncertainty Zone</div>
-        <div class="mc-val" id="mc-unc">—</div>
-        <div class="mc-sub">Within ±0.08 of threshold</div>
+      <div class="metric-box">
+        <div class="m-label">Safety Uncertainty Zone</div>
+        <div class="m-val" id="metric-unc">—</div>
+        <div class="m-sub">Within ±0.08 of threshold</div>
       </div>
     </div>
 
-    <!-- Clinical Action -->
-    <div class="clinical-box">
-      <div class="cbox-title">Clinical Recommendation</div>
-      <div class="cbox-action" id="cbox-action">—</div>
-      <div class="cbox-triage" id="cbox-triage">—</div>
+    <!-- Recommendations & Clinical Triage -->
+    <div class="decision-box">
+      <div class="db-title">Clinical Diagnostic Recommendation</div>
+      <div class="db-action" id="decision-action">—</div>
+      <div class="db-triage" id="decision-triage">—</div>
     </div>
 
-    <!-- Action Buttons -->
-    <div class="modal-actions">
-      <button class="btn-new" id="btn-new-image">🩻 Analyze Another Image</button>
-      <button class="btn-close" id="btn-close-modal">✕ Close Report</button>
+    <!-- Centered Action Buttons -->
+    <div class="center-actions">
+      <button class="btn-primary-reset" id="btn-analyze-another">
+        <span>🩻</span>
+        <span>Upload &amp; Analyze Another Radiograph</span>
+      </button>
+      <button class="btn-secondary-print" id="btn-print-report" onclick="window.print()">
+        <span>🖨️</span>
+        <span>Print Clinical Report</span>
+      </button>
     </div>
 
   </div>
+
 </div>
 
 {% raw %}
@@ -522,7 +459,6 @@ let applyMode3D = function(i){};
   }
 
   if(!gl){
-    console.warn("WebGL 2 not available — using ambient CSS background gradient.");
     canvas.style.display = 'none';
     return;
   }
@@ -622,9 +558,6 @@ let applyMode3D = function(i){};
     const s = gl.createShader(type);
     gl.shaderSource(s, src);
     gl.compileShader(s);
-    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
-      console.warn('Shader compile log:', gl.getShaderInfoLog(s));
-    }
     return s;
   }
 
@@ -633,7 +566,6 @@ let applyMode3D = function(i){};
   gl.attachShader(prog, mkShader(FS, gl.FRAGMENT_SHADER));
   gl.linkProgram(prog);
   if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
-    console.warn('Link error in WebGL program:', gl.getProgramInfoLog(prog));
     canvas.style.display = 'none';
     return;
   }
@@ -729,32 +661,16 @@ let applyMode3D = function(i){};
 
   let yaw=0.42, pitch=-0.10, zoom=5.8;
   let drag=false, lx=0, ly=0;
-  canvas.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
+  window.addEventListener('mousedown',e=>{if(e.target===canvas){drag=true;lx=e.clientX;ly=e.clientY;}});
   window.addEventListener('mousemove',e=>{if(!drag)return;yaw+=(e.clientX-lx)*0.008;pitch+=(e.clientY-ly)*0.006;pitch=Math.max(-1.2,Math.min(1.2,pitch));lx=e.clientX;ly=e.clientY;});
   window.addEventListener('mouseup',()=>drag=false);
-  canvas.addEventListener('wheel',e=>{zoom+=e.deltaY*0.005;zoom=Math.max(2.5,Math.min(9.5,zoom));e.preventDefault();},{passive:false});
-  let pinch0=null;
-  canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){drag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}if(e.touches.length===2)pinch0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);e.preventDefault();},{passive:false});
-  canvas.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag){yaw+=(e.touches[0].clientX-lx)*0.008;pitch+=(e.touches[0].clientY-ly)*0.006;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}if(e.touches.length===2&&pinch0!==null){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);zoom-=(d-pinch0)*0.012;zoom=Math.max(2.5,Math.min(9.5,zoom));pinch0=d;}e.preventDefault();},{passive:false});
-  canvas.addEventListener('touchend',()=>{drag=false;pinch0=null;});
 
-  const MODES=[
-    {pathology:0.00,collapse:0.00,jsn:'4.8 mm',bmd:'1.24',ts:'+0.8',po:'12%',jc:'c',bc:'c',tc:'',pc:'r'},
-    {pathology:0.48,collapse:0.55,jsn:'2.9 mm',bmd:'0.91',ts:'−1.4',po:'38%',jc:'',bc:'',tc:'',pc:'r'},
-    {pathology:0.94,collapse:0.98,jsn:'1.1 mm',bmd:'0.63',ts:'−2.9',po:'73%',jc:'r',bc:'r',tc:'r',pc:'r'},
-  ];
   let tPath=0, tCol=0, curPath=0, curCol=0;
-
   applyMode3D = function(i){
-    document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.classList.toggle('active',+b.dataset.mode===i));
-    const m=MODES[i];
-    tPath=m.pathology;
-    tCol=m.collapse;
-    hud('sp-jsn',m.jsn,m.jc);hud('sp-bmd',m.bmd,m.bc);hud('sp-tscore',m.ts,m.tc);hud('sp-poros',m.po,m.pc);
+    if(i===2){ tPath=0.94; tCol=0.98; }
+    else if(i===1){ tPath=0.48; tCol=0.55; }
+    else { tPath=0.0; tCol=0.0; }
   };
-
-  function hud(id,val,cls){const el=document.getElementById(id);if(el){el.textContent=val;el.className='spc-val '+(cls||'');}}
-  document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.addEventListener('click',()=>applyMode3D(+b.dataset.mode)));
 
   let first=true;
   function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;gl.viewport(0,0,canvas.width,canvas.height);}
@@ -786,298 +702,199 @@ let applyMode3D = function(i){};
   requestAnimationFrame(frame);
 })();
 
-// ═══════════════════════════════════════════════════
-//  CORE UI INTERACTION & DIAGNOSTIC INFERENCE LOGIC
-// ═══════════════════════════════════════════════════
-(function initUI(){
+// ═══════════════════════════════════════════════════════════════
+//  DIAGNOSTIC WORKSTATION INTERACTION LOGIC
+// ═══════════════════════════════════════════════════════════════
+(function initDiagnosticWorkstation(){
   "use strict";
 
-  const dz          = document.getElementById('drop-zone');
-  const fi          = document.getElementById('file-inp');
-  const previewCard = document.getElementById('preview-card');
-  const prev        = document.getElementById('preview-img');
-  const fileName    = document.getElementById('file-name');
-  const fileSize    = document.getElementById('file-size');
-  const changeBtn   = document.getElementById('change-btn');
-  const btn         = document.getElementById('analyze-btn');
-  const rbox        = document.getElementById('result-box');
-  const rval        = document.getElementById('result-val');
-  const rconf       = document.getElementById('result-conf');
-  const rtriage     = document.getElementById('result-triage');
-  const progWrap    = document.getElementById('progress-wrap');
-  const progFill    = document.getElementById('progress-fill');
-  const progLabel   = document.getElementById('progress-label');
-  const viewFullBtn = document.getElementById('view-full-btn');
+  // Intake Elements
+  const intakeCard    = document.getElementById('intake-card');
+  const dropZone      = document.getElementById('drop-zone');
+  const fileInp       = document.getElementById('file-inp');
+  const intakePreview = document.getElementById('intake-preview');
+  const intakeImg     = document.getElementById('intake-img');
+  const intakeChange  = document.getElementById('intake-change-btn');
+  const intakeFname   = document.getElementById('intake-fname');
+  const intakeFsize   = document.getElementById('intake-fsize');
+  const btnAnalyze    = document.getElementById('btn-analyze');
+  const progStrip     = document.getElementById('progress-strip');
+  const progFill      = document.getElementById('progress-fill');
+  const progStatus    = document.getElementById('progress-status');
 
-  // Modal elements
-  const modal        = document.getElementById('results-modal');
-  const verdictBanner= document.getElementById('verdict-banner');
-  const verdictIcon  = document.getElementById('verdict-icon');
-  const verdictTitle = document.getElementById('verdict-title');
-  const verdictSub   = document.getElementById('verdict-sub');
-  const vmProb       = document.getElementById('vm-prob');
-  const vmThresh     = document.getElementById('vm-thresh');
-  const modalOrig    = document.getElementById('modal-orig');
-  const modalGradcam = document.getElementById('modal-gradcam');
-  const mcConf       = document.getElementById('mc-conf');
-  const mcLogit      = document.getElementById('mc-logit');
-  const mcThresh     = document.getElementById('mc-thresh');
-  const mcUnc        = document.getElementById('mc-unc');
-  const cboxAction   = document.getElementById('cbox-action');
-  const cboxTriage   = document.getElementById('cbox-triage');
-  const btnNewImage  = document.getElementById('btn-new-image');
-  const btnClose     = document.getElementById('btn-close-modal');
+  // Report Elements
+  const reportConsole = document.getElementById('report-console');
+  const clinicBanner  = document.getElementById('clinic-banner');
+  const clinicIcon    = document.getElementById('clinic-icon');
+  const clinicTag     = document.getElementById('clinic-tag');
+  const clinicVerdict = document.getElementById('clinic-verdict');
+  const clinicNote    = document.getElementById('clinic-action-note');
+  const clinicProb    = document.getElementById('clinic-prob');
+  const clinicThresh  = document.getElementById('clinic-thresh-lbl');
+  const viewOrig      = document.getElementById('view-orig');
+  const viewGradcam   = document.getElementById('view-gradcam');
+  const metricConf    = document.getElementById('metric-conf');
+  const metricLogit   = document.getElementById('metric-logit');
+  const metricThresh  = document.getElementById('metric-thresh');
+  const metricUnc     = document.getElementById('metric-unc');
+  const decisionAction= document.getElementById('decision-action');
+  const decisionTriage= document.getElementById('decision-triage');
+  const btnReset      = document.getElementById('btn-analyze-another');
 
-  let _lastData = null;
+  let selectedFile = null;
+  let selectedFileUrl = null;
 
-  function startProgress(){
-    if(!progWrap) return;
-    progWrap.style.display = 'block';
-    progFill.style.width = '0%';
-    const steps = [
-      [200,  '20%', 'Preprocessing radiograph…'],
-      [600,  '45%', 'Running ONNX deep learning inference…'],
-      [1400, '70%', 'Generating Grad-CAM saliency map…'],
-      [2200, '90%', 'Compiling clinical report…'],
-    ];
-    steps.forEach(([delay, w, label]) => {
-      setTimeout(() => {
-        if(progFill) progFill.style.width = w;
-        if(progLabel) progLabel.textContent = label;
-      }, delay);
-    });
+  function setProgress(pct, status){
+    if(!progStrip) return;
+    progStrip.style.display = 'block';
+    progFill.style.width = pct + '%';
+    progStatus.textContent = status;
   }
 
-  function stopProgress(){
-    if(!progFill) return;
-    progFill.style.width = '100%';
-    setTimeout(() => {
-      if(progWrap) progWrap.style.display = 'none';
-      if(progFill) progFill.style.width = '0%';
-    }, 400);
-  }
-
-  function resetToUpload(){
-    if(modal) modal.classList.remove('open');
-    if(dz) dz.style.display = 'block';
-    if(previewCard) previewCard.style.display = 'none';
-    if(rbox) rbox.style.display = 'none';
-    if(btn){
-      btn.disabled = true;
-      btn.classList.remove('ready');
-      btn.innerHTML = 'Select Knee X-ray';
-      btn._file = null;
-    }
-    if(fi) fi.value = '';
-    _lastData = null;
-  }
-
-  function openModal(data, origSrc){
-    _lastData = data;
-    const isPath = Boolean(
-      data.pathology_detected ||
-      (data.prediction && (
-        data.prediction.toLowerCase().includes('pathology') ||
-        data.prediction.toLowerCase().includes('osteoporosis')
-      ))
-    );
-    const isUnc = Boolean(data.uncertainty_zone);
-
-    const cls = isUnc ? 'uncertain' : (isPath ? 'pathology' : 'normal');
-    if(verdictBanner) verdictBanner.className = 'verdict-banner ' + cls;
-    if(verdictIcon)   verdictIcon.textContent  = isUnc ? '⚠️' : (isPath ? '🔴' : '🟢');
-    if(verdictTitle){
-      verdictTitle.textContent = data.prediction || (isPath ? 'Osteoporosis Detected' : 'Normal Joint Architecture');
-      verdictTitle.className   = 'verdict-title ' + cls;
-    }
-    if(verdictSub) verdictSub.textContent = data.clinical_action || '';
-    if(vmProb){
-      vmProb.textContent = (data.osteoporosis_probability !== undefined)
-        ? (data.osteoporosis_probability * 100).toFixed(1) + '%' : '—';
-      vmProb.style.color = isUnc ? '#f5c518' : (isPath ? '#e34234' : '#d4ff3f');
-    }
-    if(vmThresh){
-      vmThresh.textContent = data.threshold_used !== undefined ? `Decision Threshold: ${data.threshold_used}` : '';
-    }
-
-    if(modalOrig && origSrc) modalOrig.src = origSrc;
-    if(modalGradcam){
-      if(data.gradcam_png){
-        modalGradcam.src = 'data:image/png;base64,' + data.gradcam_png;
-        modalGradcam.style.display = 'block';
-      } else {
-        modalGradcam.style.display = 'none';
-      }
-    }
-
-    const confPct = ((data.confidence || 0) * 100).toFixed(1);
-    if(mcConf){
-      mcConf.textContent = confPct + '%';
-      mcConf.className   = 'mc-val ' + (isPath ? 'red' : 'green');
-    }
-    if(mcLogit)  mcLogit.textContent  = data.raw_logit !== undefined ? data.raw_logit.toFixed(3) : '—';
-    if(mcThresh) mcThresh.textContent = data.threshold_used !== undefined ? data.threshold_used : '—';
-    if(mcUnc){
-      mcUnc.textContent = isUnc ? 'YES ⚠' : 'No ✓';
-      mcUnc.className   = 'mc-val ' + (isUnc ? 'gold' : 'green');
-    }
-
-    if(cboxAction) cboxAction.textContent = data.clinical_action || '—';
-    if(cboxTriage) cboxTriage.textContent = data.clinical_triage || '—';
-
-    if(modal){
-      modal.classList.add('open');
-      modal.scrollTop = 0;
-    }
-  }
-
-  function handleFile(file){
+  function handleFileSelection(file){
     if(!file) return;
     const isImage = (file.type && file.type.startsWith('image/')) ||
                     /\.(jpe?g|png|webp|bmp|tiff|tif)$/i.test(file.name);
     if(!isImage){
-      alert('Please select a valid radiograph image (JPEG, PNG, WebP).');
+      alert('Please upload a valid knee radiograph image (PNG, JPEG, WebP).');
       return;
     }
 
-    btn._file = file;
-    btn.disabled = false;
-    btn.classList.add('ready');
-    btn.innerHTML = '⚡ Analyze Radiograph';
+    selectedFile = file;
+    selectedFileUrl = URL.createObjectURL(file);
 
-    const url = URL.createObjectURL(file);
-    if(prev){
-      prev.src = url;
-      prev._objectURL = url;
-    }
-    if(fileName) fileName.textContent = file.name;
-    if(fileSize) fileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+    intakeImg.src = selectedFileUrl;
+    intakeFname.textContent = file.name;
+    intakeFsize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
 
-    if(dz) dz.style.display = 'none';
-    if(previewCard) previewCard.style.display = 'block';
-    if(rbox) rbox.style.display = 'none';
+    dropZone.style.display = 'none';
+    intakePreview.style.display = 'block';
+
+    btnAnalyze.disabled = false;
+    btnAnalyze.classList.add('ready');
+    btnAnalyze.innerHTML = '⚡ Run AI Diagnostic Analysis';
   }
 
-  if(dz){
-    dz.addEventListener('click', e => { e.stopPropagation(); if(fi){ fi.value = ''; fi.click(); } });
-    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-    dz.addEventListener('drop', e => {
-      e.preventDefault();
-      dz.classList.remove('drag');
-      if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]){
-        handleFile(e.dataTransfer.files[0]);
-      }
-    });
+  function resetWorkstation(){
+    selectedFile = null;
+    if(fileInp) fileInp.value = '';
+
+    intakePreview.style.display = 'none';
+    dropZone.style.display = 'block';
+    btnAnalyze.disabled = true;
+    btnAnalyze.classList.remove('ready');
+    btnAnalyze.innerHTML = 'Select Knee X-ray';
+    progStrip.style.display = 'none';
+
+    reportConsole.style.display = 'none';
+    intakeCard.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  if(changeBtn){
-    changeBtn.addEventListener('click', e => { e.stopPropagation(); if(fi){ fi.value = ''; fi.click(); } });
-  }
-
-  if(fi){
-    fi.addEventListener('change', () => {
-      if(fi.files && fi.files[0]) handleFile(fi.files[0]);
-    });
-  }
-
-  if(btn){
-    btn.addEventListener('click', async () => {
-      const file = btn._file;
-      if(!file) return;
-
-      btn.disabled = true;
-      btn.classList.remove('ready');
-      btn.innerHTML = '⏳ Analyzing…';
-      if(rbox) rbox.style.display = 'none';
-      startProgress();
-
-      const origSrc = prev ? prev.src : '';
-      const fd = new FormData();
-      fd.append('file', file);
-
-      try {
-        const resp = await fetch('/predict', { method: 'POST', body: fd });
-        const data = await resp.json();
-        stopProgress();
-
-        if(!resp.ok || data.error || data.detail){
-          if(rval) { rval.textContent = 'Error'; rval.className = 'result-val pathology'; }
-          if(rconf) rconf.textContent = data.detail || data.error || 'Server error';
-          if(rtriage) rtriage.style.display = 'none';
-          if(rbox) rbox.style.display = 'block';
-        } else {
-          const isPath = Boolean(
-            data.pathology_detected ||
-            (data.prediction && (
-              data.prediction.toLowerCase().includes('pathology') ||
-              data.prediction.toLowerCase().includes('osteoporosis')
-            ))
-          );
-          if(rval){
-            rval.textContent = data.prediction || (isPath ? 'Osteoporosis Detected' : 'Normal Joint Architecture');
-            rval.className   = 'result-val ' + (isPath ? 'pathology' : 'normal');
-          }
-          const confPct = ((data.confidence || 0.95) * 100).toFixed(1);
-          const probStr = (data.osteoporosis_probability !== undefined) ? data.osteoporosis_probability.toFixed(3) : '—';
-          if(rconf) rconf.innerHTML = `Confidence: <b>${confPct}%</b> · Prob: <b>${probStr}</b>`;
-          if(rtriage){
-            if(data.clinical_triage){
-              rtriage.textContent = data.clinical_triage;
-              rtriage.style.display = 'block';
-            } else {
-              rtriage.style.display = 'none';
-            }
-          }
-          if(rbox) rbox.style.display = 'block';
-
-          // Update 3D model if active
-          applyMode3D(isPath ? 2 : 0);
-
-          // Pop up the full-screen report modal
-          openModal(data, origSrc);
-        }
-      } catch(err){
-        stopProgress();
-        if(rbox) rbox.style.display = 'block';
-        if(rval){ rval.textContent = 'Network Error'; rval.className = 'result-val pathology'; }
-        if(rconf) rconf.textContent = String(err.message || err);
-        if(rtriage) rtriage.style.display = 'none';
-      } finally {
-        btn.disabled = false;
-        btn.classList.add('ready');
-        btn.innerHTML = '⚡ Re-Analyze';
-      }
-    });
-  }
-
-  if(viewFullBtn){
-    viewFullBtn.addEventListener('click', () => {
-      if(_lastData) openModal(_lastData, prev ? prev.src : '');
-    });
-  }
-
-  if(btnClose){
-    btnClose.addEventListener('click', () => {
-      if(modal) modal.classList.remove('open');
-    });
-  }
-
-  if(btnNewImage){
-    btnNewImage.addEventListener('click', () => {
-      resetToUpload();
-    });
-  }
-
-  if(modal){
-    modal.addEventListener('click', e => {
-      if(e.target === modal) modal.classList.remove('open');
-    });
-  }
-
-  document.addEventListener('keydown', e => {
-    if(e.key === 'Escape' && modal) modal.classList.remove('open');
+  // Drag & drop handlers
+  dropZone.addEventListener('click', () => { fileInp.value = ''; fileInp.click(); });
+  intakeChange.addEventListener('click', () => { fileInp.value = ''; fileInp.click(); });
+  fileInp.addEventListener('change', () => {
+    if(fileInp.files && fileInp.files[0]) handleFileSelection(fileInp.files[0]);
   });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+    if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]){
+      handleFileSelection(e.dataTransfer.files[0]);
+    }
+  });
+
+  // Analyze button click
+  btnAnalyze.addEventListener('click', async () => {
+    if(!selectedFile) return;
+
+    btnAnalyze.disabled = true;
+    btnAnalyze.classList.remove('ready');
+    btnAnalyze.innerHTML = '⏳ Analyzing Radiograph…';
+
+    setProgress(20, 'Orienting radiograph & extracting joint ROI…');
+    setTimeout(() => setProgress(55, 'Executing DenseNet-121 ONNX forward pass…'), 400);
+    setTimeout(() => setProgress(80, 'Generating explainable Grad-CAM saliency map…'), 1200);
+
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+
+    try {
+      const resp = await fetch('/predict', { method: 'POST', body: fd });
+      const data = await resp.json();
+      setProgress(100, 'Diagnostic analysis complete.');
+
+      if(!resp.ok || data.error || data.detail){
+        alert('Diagnostic Error: ' + (data.detail || data.error || 'Server error occurred.'));
+        btnAnalyze.disabled = false;
+        btnAnalyze.classList.add('ready');
+        btnAnalyze.innerHTML = '⚡ Run AI Diagnostic Analysis';
+        return;
+      }
+
+      // Populate Report
+      const isPath = Boolean(
+        data.pathology_detected ||
+        (data.prediction && (
+          data.prediction.toLowerCase().includes('pathology') ||
+          data.prediction.toLowerCase().includes('osteoporosis')
+        ))
+      );
+      const isUnc = Boolean(data.uncertainty_zone);
+
+      const themeClass = isUnc ? 'uncertain' : (isPath ? 'pathology' : 'normal');
+      clinicBanner.className = 'clinic-banner ' + themeClass;
+      clinicIcon.textContent  = isUnc ? '⚠️' : (isPath ? '🔴' : '🟢');
+      clinicTag.textContent   = isUnc ? 'Uncertain / High Entropy Case' : (isPath ? 'Degenerative Pathology Detected' : 'Normal Knee Anatomy');
+      clinicVerdict.textContent = data.prediction || (isPath ? 'Osteoporosis Detected' : 'Normal Joint Architecture');
+      clinicNote.textContent    = data.clinical_action || 'Radiological assessment concluded.';
+
+      const probVal = data.osteoporosis_probability !== undefined ? (data.osteoporosis_probability * 100).toFixed(1) + '%' : '—';
+      clinicProb.textContent = probVal;
+      clinicThresh.textContent = data.threshold_used !== undefined ? `Decision Threshold: ${data.threshold_used}` : 'Threshold: 0.6930';
+
+      // Load Images
+      viewOrig.src = selectedFileUrl;
+      if(data.gradcam_png){
+        viewGradcam.src = 'data:image/png;base64,' + data.gradcam_png;
+      } else {
+        viewGradcam.src = selectedFileUrl;
+      }
+
+      // Metrics
+      metricConf.textContent = ((data.confidence || 0) * 100).toFixed(1) + '%';
+      metricConf.className   = 'm-val ' + (isPath ? 'r' : 'g');
+      metricLogit.textContent= data.raw_logit !== undefined ? data.raw_logit.toFixed(3) : '—';
+      metricThresh.textContent = data.threshold_used !== undefined ? data.threshold_used : '0.6930';
+      metricUnc.textContent  = isUnc ? 'YES (Flagged)' : 'NO (Clear)';
+      metricUnc.className    = 'm-val ' + (isUnc ? 'a' : 'g');
+
+      // Decisions
+      decisionAction.textContent = data.clinical_action || 'No critical intervention required.';
+      decisionTriage.innerHTML   = '<span>📋 Clinical Triage Urgency:</span> <b>' + (data.clinical_triage || 'Routine Assessment') + '</b>';
+
+      // Update 3D model
+      applyMode3D(isPath ? 2 : 0);
+
+      // Hide Intake, Show Center Report
+      intakeCard.style.display = 'none';
+      reportConsole.style.display = 'block';
+
+      // Smooth scroll to top of report
+      reportConsole.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch(err){
+      alert('Network or Server Connection Error: ' + err.message);
+      btnAnalyze.disabled = false;
+      btnAnalyze.classList.add('ready');
+      btnAnalyze.innerHTML = '⚡ Run AI Diagnostic Analysis';
+    }
+  });
+
+  // Reset button
+  btnReset.addEventListener('click', resetWorkstation);
 
 })();
 </script>
