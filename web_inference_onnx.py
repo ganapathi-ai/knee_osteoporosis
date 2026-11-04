@@ -19,9 +19,17 @@ class KneeRadiographONNXPredictor:
         Requires NO PyTorch, NO GPU, and NO training data!
         """
         if not os.path.exists(onnx_model_path):
-            raise FileNotFoundError(f"ONNX model file not found: {onnx_model_path}")
+            fb = os.path.join("exports_model", "ortho_knee_densenet121.onnx")
+            if os.path.exists(fb):
+                onnx_model_path = fb
+            else:
+                raise FileNotFoundError(f"ONNX model file not found: {onnx_model_path}")
             
         # Load metadata if present, else fallback to defaults
+        if not os.path.exists(metadata_path):
+            fb_m = os.path.join("exports_model", "model_metadata.json")
+            if os.path.exists(fb_m):
+                metadata_path = fb_m
         if os.path.exists(metadata_path):
             with open(metadata_path, 'r', encoding='utf-8') as f:
                 self.metadata = json.load(f)

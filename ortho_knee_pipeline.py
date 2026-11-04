@@ -173,10 +173,16 @@ for category in ['normal', 'osteoporosis']:
             
         full_path = os.path.join(cat_dir, fname)
         
-        # Regex captures patient seed ID, stripping offline augmentation suffixes
-        m = re.match(r'^(.*?)(?:_augmented|\.)', fname)
-        patient_seed = m.group(1).strip() if m else os.path.splitext(fname)[0]
-        
+        # Robust Patient Seed Extraction:
+        # Strips offline augmentation tokens (_augmented, _aug, _rot, _flip, _copy, (1), etc.)
+        # so all augmented derivatives of the same knee share identical patient_id,
+        # preventing cross-split patient data leakage.
+        base_name = os.path.splitext(fname)[0]
+        cleaned = re.sub(r'(_augmented.*|_aug.*|_rot\d*|_flip.*|_copy.*|_trans.*|_zoom.*|_v\d+|\s*\(\d+\)|\s*copy.*)', '', base_name, flags=re.IGNORECASE)
+        patient_seed = re.sub(r'[-_]\d+$', '', cleaned).strip()
+        if not patient_seed:
+            patient_seed = base_name
+
         records.append({
             'filepath': full_path,
             'filename': fname,
@@ -187,6 +193,9 @@ for category in ['normal', 'osteoporosis']:
 
 df_meta = pd.DataFrame(records)
 print(f"\n[Dataset Audit Summary]")
+per_pt = df_meta.groupby(['category', 'patient_id']).size()
+print(f"[Patient Clustering Diagnostic — Images per Patient Cluster]")
+print(per_pt.groupby('category').describe())
 print(f"  Total Radiographs: {len(df_meta)}")
 print(f"  Total Unique Patient Seeds: {df_meta['patient_id'].nunique()}")
 print(f"\nClass Breakdown (Images):")
@@ -331,8 +340,8 @@ class KneeRadiographDataset(Dataset):
         
         try:
             image = Image.open(img_path).convert('RGB')
-        except Exception:
-            image = Image.new('RGB', IMAGE_SIZE, color=(0, 0, 0))
+        except Exception as exc:
+            raise IOError(f"Corrupt or unreadable knee radiograph at '{img_path}': {exc}")
             
         if self.transform:
             image = self.transform(image)
@@ -711,28 +720,13 @@ test_targets = np.array(test_targets)
 # slight brightness increase (+0.1)
 print("\n[TTA] Running 5-view Test-Time Augmentation for robust inference...")
 
+# Deterministic 5-view TTA sharing the exact canonical RadiographPreprocessor
 tta_transforms = [
-    eval_transforms,  # View 1: Original (no extra augmentation)
-    transforms.Compose([                                      # View 2: H-flip
-        AutoOrientKneeRadiograph(), transforms.Resize(IMAGE_SIZE),
-        transforms.RandomHorizontalFlip(p=1.0),
-        transforms.ToTensor(), transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)
-    ]),
-    transforms.Compose([                                      # View 3: +5° rotation
-        AutoOrientKneeRadiograph(), transforms.Resize(IMAGE_SIZE),
-        transforms.RandomAffine(degrees=(5, 5)),
-        transforms.ToTensor(), transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)
-    ]),
-    transforms.Compose([                                      # View 4: -5° rotation
-        AutoOrientKneeRadiograph(), transforms.Resize(IMAGE_SIZE),
-        transforms.RandomAffine(degrees=(-5, -5)),
-        transforms.ToTensor(), transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)
-    ]),
-    transforms.Compose([                                      # View 5: +brightness
-        AutoOrientKneeRadiograph(), transforms.Resize(IMAGE_SIZE),
-        transforms.ColorJitter(brightness=0.15),
-        transforms.ToTensor(), transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)
-    ]),
+    transforms.Compose([transforms.Lambda(lambda img: preprocessor.to_tensor(img))]),
+    transforms.Compose([transforms.Lambda(lambda img: transforms.functional.hflip(preprocessor.to_tensor(img)))]),
+    transforms.Compose([transforms.Lambda(lambda img: transforms.functional.rotate(preprocessor.to_tensor(img), angle=5.0))]),
+    transforms.Compose([transforms.Lambda(lambda img: transforms.functional.rotate(preprocessor.to_tensor(img), angle=-5.0))]),
+    transforms.Compose([transforms.Lambda(lambda img: transforms.functional.adjust_brightness(preprocessor.to_tensor(img), brightness_factor=1.12))]),
 ]
 
 # Re-run inference with all 5 TTA views and collect per-sample probability arrays
