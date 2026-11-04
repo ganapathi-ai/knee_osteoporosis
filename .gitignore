@@ -1,9 +1,10 @@
-# Model weights — too large for git; upload separately or use Render Disk
-*.onnx
+# Model weights — keep heavy train checkpoints out, keep exported production onnx (28MB < 50MB)
 *.pth
 *.pt
 *.h5
 *.pkl
+*.onnx
+!exports_model/*.onnx
 
 # Python
 __pycache__/
@@ -49,3 +50,4 @@ logs/
 
 # Render
 .render-buildpacks.json
+

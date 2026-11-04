@@ -144,3 +144,4 @@ knee_osteoporosis/
 ## Disclaimer
 
 This software is intended **solely for research and educational purposes**. It has not been validated for clinical use and must not be used to make or inform clinical decisions. Always consult a qualified radiologist.
+

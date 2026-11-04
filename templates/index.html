@@ -1,115 +1,142 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>OrthoScan AI — Knee Radiography Pathology Detector</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <style>
-    /* =====================================================================
-       Design tokens
-       ===================================================================== */
+    /* ═══════════════════════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════════════════════ */
     :root {
-      --lavender:      #cbb3e8;
-      --lavender-dim:  #9b80c0;
-      --chartreuse:    #d4ff3f;
-      --tomato:        #e34234;
-      --amber:         #f5a623;
+      /* 3D sim palette */
+      --jet:       #0a0a0a;
+      --cerulean:  #007ba7;
+      --rose:      #ff2d95;
+      --cerulean-l:#42c8f0;
 
-      --bg:            #0f0f11;
-      --surface:       #1a1a20;
-      --surface-hi:    #22222a;
-      --border:        #2e2e38;
-      --border-hi:     #3e3e4e;
+      /* UI overlay palette */
+      --lavender:  #cbb3e8;
+      --chartreuse:#d4ff3f;
+      --tomato:    #e34234;
+      --amber:     #f5a623;
 
-      --text:          #f0eef5;
-      --text-muted:    #8b8899;
-      --text-faint:    #55535f;
+      /* Glass surface */
+      --glass-bg:   rgba(10,10,14,0.78);
+      --glass-border:rgba(255,255,255,0.08);
+      --glass-hi:   rgba(255,255,255,0.04);
 
-      --radius-sm:     4px;
-      --radius:        8px;
-      --radius-lg:     12px;
-
-      --transition:    160ms ease;
+      --text:      #f0eef5;
+      --muted:     #8b8899;
+      --faint:     #44424e;
+      --radius:    10px;
+      --radius-sm: 6px;
     }
 
-    /* =====================================================================
-       Reset & base
-       ===================================================================== */
+    /* ═══════════════════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════════════════ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html { font-size: 16px; }
-
+    html, body { width: 100%; height: 100%; overflow: hidden; }
     body {
       font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg);
+      background: var(--jet);
       color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* =====================================================================
-       Layout shell
-       ===================================================================== */
-    .shell {
+    /* ═══════════════════════════════════════════════════════════
+       FULL-SCREEN 3D CANVAS — BACKGROUND LAYER
+    ═══════════════════════════════════════════════════════════ */
+    #bone-canvas {
+      position: fixed;
+      top: 0; left: 0;
       width: 100%;
-      max-width: 680px;
-      padding: 0 20px;
-      flex: 1;
+      height: 100%;
+      z-index: 0;
+      display: block;
+      background: #0a0a0a;
+    }
+
+    #webgl-err {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      z-index: 9;
+      background: rgba(10,10,14,0.9);
+      border: 1px solid rgba(255,45,149,0.4);
+      border-radius: 10px;
+      padding: 20px 28px;
+      font-size: 13px;
+      color: #ff2d95;
+      text-align: center;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       TOP NAV BAR
+    ═══════════════════════════════════════════════════════════ */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 50;
+      height: 56px;
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(10,10,14,0.65);
+      border-bottom: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
     }
 
-    /* =====================================================================
-       Header
-       ===================================================================== */
-    header {
-      padding: 48px 0 40px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 40px;
-    }
-
-    .header-eyebrow {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-    }
-
-    .header-title {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      line-height: 1.2;
-      color: var(--text);
-    }
-
-    .header-title .accent { color: var(--lavender); }
-
-    .header-subtitle {
-      margin-top: 8px;
-      font-size: 14px;
-      color: var(--text-muted);
-      font-weight: 400;
-    }
-
-    .header-meta {
+    .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-top: 16px;
-      flex-wrap: wrap;
     }
 
-    .pill {
+    .brand-icon {
+      width: 30px; height: 30px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, var(--cerulean) 0%, #004d6e 100%);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .brand-icon svg { width: 16px; height: 16px; color: #fff; }
+
+    .brand-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .brand-name .a1 { color: var(--cerulean-l); }
+    .brand-name .a2 { color: var(--rose); }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      margin-left: 2px;
+      display: none;
+    }
+
+    @media (min-width: 640px) { .brand-sub { display: inline; } }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-pill {
       display: inline-flex;
       align-items: center;
       gap: 5px;
@@ -117,1517 +144,1055 @@
       border-radius: 100px;
       font-size: 11px;
       font-weight: 500;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
     }
 
-    .pill-lavender  { background: rgba(203,179,232,0.12); color: var(--lavender); border: 1px solid rgba(203,179,232,0.25); }
-    .pill-amber     { background: rgba(245,166,35,0.10);  color: var(--amber);    border: 1px solid rgba(245,166,35,0.22); }
-    .pill-green     { background: rgba(212,255,63,0.08);  color: var(--chartreuse); border: 1px solid rgba(212,255,63,0.2); }
-    .pill-red       { background: rgba(227,66,52,0.10);   color: var(--tomato);   border: 1px solid rgba(227,66,52,0.22); }
-
-    .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-      flex-shrink: 0;
+    .np-green {
+      background: rgba(0,123,167,0.14);
+      color: var(--cerulean-l);
+      border: 1px solid rgba(0,123,167,0.3);
     }
 
-    /* =====================================================================
-       Upload zone
-       ===================================================================== */
-    .upload-section { margin-bottom: 24px; }
+    .np-demo {
+      background: rgba(245,166,35,0.12);
+      color: var(--amber);
+      border: 1px solid rgba(245,166,35,0.25);
+    }
 
-    .upload-label {
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.06em;
+    .np-lavender {
+      background: rgba(203,179,232,0.1);
+      color: var(--lavender);
+      border: 1px solid rgba(203,179,232,0.2);
+    }
+
+    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+    /* ═══════════════════════════════════════════════════════════
+       LEFT ANALYSIS PANEL — floating glass card
+    ═══════════════════════════════════════════════════════════ */
+    .analysis-panel {
+      position: fixed;
+      top: 70px;
+      left: 20px;
+      bottom: 20px;
+      z-index: 40;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .analysis-panel::-webkit-scrollbar { display: none; }
+
+    @media (max-width: 700px) {
+      .analysis-panel {
+        left: 10px; right: 10px; width: auto;
+        top: auto; bottom: 10px;
+        max-height: 60vh;
+      }
+    }
+
+    /* Glass card base */
+    .glass-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      padding: 16px;
+    }
+
+    /* Section label */
+    .sec-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--text-muted);
-      display: block;
+      color: var(--muted);
       margin-bottom: 10px;
     }
 
+    /* ── Upload zone ─────────────────────────────────────────── */
     .drop-zone {
       position: relative;
-      border: 1.5px dashed var(--border);
-      border-radius: var(--radius-lg);
-      background: var(--surface);
+      border: 1.5px dashed rgba(255,255,255,0.12);
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      transition: border-color var(--transition), background var(--transition);
+      transition: border-color 0.15s ease, background 0.15s ease;
       overflow: hidden;
-      min-height: 180px;
+      min-height: 100px;
       display: flex;
       align-items: center;
       justify-content: center;
+      background: var(--glass-hi);
     }
 
-    .drop-zone:hover,
-    .drop-zone.drag-over {
-      border-color: var(--lavender-dim);
+    .drop-zone:hover, .drop-zone.over {
+      border-color: rgba(203,179,232,0.4);
       background: rgba(203,179,232,0.04);
     }
 
     .drop-zone input[type="file"] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
-      height: 100%;
+      position: absolute; inset: 0; opacity: 0;
+      cursor: pointer; width: 100%; height: 100%;
     }
 
-    /* Empty state */
     .dz-empty {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      padding: 40px 24px;
-      pointer-events: none;
-      user-select: none;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; padding: 24px 16px; pointer-events: none; user-select: none;
     }
 
-    .dz-icon {
-      width: 44px; height: 44px;
-      border-radius: 10px;
-      background: var(--surface-hi);
-      border: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--lavender-dim);
+    .dz-ico {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: rgba(203,179,232,0.1);
+      border: 1px solid rgba(203,179,232,0.2);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--lavender);
     }
 
-    .dz-icon svg { width: 20px; height: 20px; }
+    .dz-ico svg { width: 18px; height: 18px; }
+    .dz-p { font-size: 13px; font-weight: 500; color: var(--text); text-align: center; }
+    .dz-s { font-size: 11px; color: var(--muted); text-align: center; }
 
-    .dz-primary {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
-    }
-
-    .dz-secondary {
-      font-size: 12px;
-      color: var(--text-muted);
-      text-align: center;
-    }
-
-    /* Preview state */
     .dz-preview {
       display: none;
-      flex-direction: row;
-      align-items: center;
-      gap: 20px;
-      padding: 20px 24px;
-      width: 100%;
-      pointer-events: none;
-      user-select: none;
+      flex-direction: row; align-items: center;
+      gap: 12px; padding: 12px 14px;
+      width: 100%; pointer-events: none; user-select: none;
     }
 
-    .dz-preview.visible { display: flex; }
+    .dz-preview.on { display: flex; }
 
     .dz-thumb {
-      width: 72px; height: 72px;
-      border-radius: var(--radius);
-      object-fit: cover;
-      border: 1px solid var(--border);
-      flex-shrink: 0;
-      background: var(--surface-hi);
+      width: 56px; height: 56px; border-radius: var(--radius-sm);
+      object-fit: cover; border: 1px solid var(--glass-border);
+      flex-shrink: 0; background: rgba(255,255,255,0.05);
     }
 
-    .dz-file-info { flex: 1; min-width: 0; }
+    .dz-info { flex: 1; min-width: 0; }
+    .dz-fname { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dz-fsize { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .dz-change { font-size: 10px; color: var(--lavender); text-decoration: underline; text-underline-offset: 2px; margin-top: 4px; cursor: pointer; }
 
-    .dz-filename {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .dz-filesize {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    .dz-change {
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--lavender);
-      margin-top: 6px;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    /* =====================================================================
-       Analyze button
-       ===================================================================== */
+    /* ── Analyze button ─────────────────────────────────────── */
     .btn-analyze {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 13px 24px;
-      border-radius: var(--radius);
-      border: none;
-      background: var(--lavender);
-      color: #0f0f11;
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.01em;
-      cursor: pointer;
-      transition: opacity var(--transition), transform var(--transition);
-      margin-bottom: 36px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 11px 20px;
+      border-radius: var(--radius-sm); border: none;
+      background: var(--lavender); color: #0a0a0a;
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s, transform 0.12s;
     }
 
     .btn-analyze:hover:not(:disabled) { opacity: 0.88; }
-    .btn-analyze:active:not(:disabled) { transform: scale(0.99); }
+    .btn-analyze:active:not(:disabled) { transform: scale(0.985); }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .btn-analyze:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
+    .btn-analyze .sp {
+      display: none; width: 14px; height: 14px;
+      border: 2px solid rgba(10,10,10,0.25); border-top-color: #0a0a0a;
+      border-radius: 50%; animation: spin 0.65s linear infinite;
     }
 
-    .btn-analyze .spinner {
-      display: none;
-      width: 16px; height: 16px;
-      border: 2px solid rgba(15,15,17,0.3);
-      border-top-color: #0f0f11;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-
-    .btn-analyze.loading .spinner { display: block; }
-    .btn-analyze.loading .btn-label { opacity: 0.6; }
+    .btn-analyze.loading .sp { display: block; }
+    .btn-analyze.loading .lbl { opacity: 0.6; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* =====================================================================
-       Divider
-       ===================================================================== */
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 0 0 36px;
+    /* ── Error banner ───────────────────────────────────────── */
+    .err-banner {
+      display: none; align-items: flex-start; gap: 10px;
+      background: rgba(227,66,52,0.08);
+      border: 1px solid rgba(227,66,52,0.25);
+      border-radius: var(--radius-sm); padding: 10px 12px;
     }
 
-    /* =====================================================================
-       Results panel
-       ===================================================================== */
-    #results-panel {
-      display: none;
-      flex-direction: column;
-      gap: 20px;
-      margin-bottom: 48px;
-      animation: fadeUp 0.25s ease both;
+    .err-banner.on { display: flex; }
+    .err-banner svg { width: 15px; height: 15px; color: var(--tomato); flex-shrink: 0; margin-top: 1px; }
+    .err-banner p { font-size: 12px; color: var(--muted); }
+    .err-banner strong { color: var(--tomato); }
+
+    /* ── Results ────────────────────────────────────────────── */
+    #results-card {
+      display: none; flex-direction: column; gap: 12px;
+      animation: fadeUp 0.22s ease both;
     }
 
-    #results-panel.visible { display: flex; }
+    #results-card.on { display: flex; }
 
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(8px); }
+      from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Results header row */
-    .result-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
+    .result-prediction {
+      font-size: 15px; font-weight: 700;
+      letter-spacing: -0.01em; line-height: 1.3;
     }
 
-    .result-label-group { flex: 1; min-width: 200px; }
+    .rp-normal   { color: var(--chartreuse); }
+    .rp-pathology{ color: var(--tomato); }
+    .rp-uncertain{ color: var(--amber); }
 
-    .result-eyebrow {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-muted);
+    /* Prob gauge */
+    .gauge-row {
+      display: flex; justify-content: space-between; align-items: baseline;
       margin-bottom: 6px;
     }
 
-    .result-prediction {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      line-height: 1.25;
-    }
-
-    .result-prediction.normal     { color: var(--chartreuse); }
-    .result-prediction.pathology  { color: var(--tomato); }
-    .result-prediction.uncertain  { color: var(--amber); }
-
-    /* =====================================================================
-       Probability gauge
-       ===================================================================== */
-    .gauge-section { }
-
-    .gauge-label-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 8px;
-    }
-
-    .gauge-title {
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
-    .gauge-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 22px;
-      font-weight: 500;
-      color: var(--text);
-    }
+    .gauge-title { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .gauge-val   { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500; color: var(--text); }
 
     .gauge-track {
-      position: relative;
-      height: 8px;
-      background: var(--surface-hi);
-      border-radius: 100px;
-      overflow: visible;
+      position: relative; height: 6px;
+      background: rgba(255,255,255,0.07); border-radius: 100px;
     }
 
     .gauge-fill {
-      position: absolute;
-      top: 0; left: 0;
-      height: 100%;
-      border-radius: 100px;
-      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-      min-width: 8px;
+      position: absolute; top: 0; left: 0; height: 100%;
+      border-radius: 100px; min-width: 6px;
+      transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
     }
 
-    .gauge-fill.normal     { background: var(--chartreuse); }
-    .gauge-fill.pathology  { background: var(--tomato); }
-    .gauge-fill.uncertain  { background: var(--amber); }
+    .gf-normal    { background: var(--chartreuse); }
+    .gf-pathology { background: var(--tomato); }
+    .gf-uncertain { background: var(--amber); }
 
-    /* Threshold marker */
-    .gauge-threshold {
-      position: absolute;
-      top: -4px;
-      bottom: -4px;
-      width: 2px;
-      background: var(--lavender);
-      border-radius: 2px;
-      transform: translateX(-50%);
+    .gauge-thr {
+      position: absolute; top: -3px; bottom: -3px; width: 2px;
+      background: var(--lavender); border-radius: 2px; transform: translateX(-50%);
     }
 
-    .gauge-threshold::after {
-      content: attr(data-label);
-      position: absolute;
-      top: -20px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 10px;
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--lavender-dim);
-      white-space: nowrap;
+    .gauge-thr::after {
+      content: attr(data-lbl);
+      position: absolute; top: -17px; left: 50%; transform: translateX(-50%);
+      font-size: 9px; font-family: 'JetBrains Mono', monospace;
+      color: rgba(203,179,232,0.6); white-space: nowrap;
     }
 
     .gauge-axis {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 6px;
-      font-size: 10px;
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--text-faint);
+      display: flex; justify-content: space-between; margin-top: 4px;
+      font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--faint);
     }
 
-    /* =====================================================================
-       Info cards row
-       ===================================================================== */
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+    /* Mini stats grid */
+    .stats-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     }
 
-    @media (max-width: 480px) { .info-grid { grid-template-columns: 1fr; } }
-
-    .info-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 16px;
+    .stat-box {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
     }
 
-    .info-card-label {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 6px;
+    .sb-lbl { font-size: 9px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .sb-val { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500; color: var(--text); }
+
+    /* Clinical action */
+    .clinical-box {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm); padding: 12px;
     }
 
-    .info-card-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 18px;
-      font-weight: 500;
-      color: var(--text);
+    .clinical-action { font-size: 12px; color: var(--text); line-height: 1.55; }
+
+    .triage-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 8px; padding: 3px 10px;
+      border-radius: 100px; font-size: 11px; font-weight: 500;
     }
 
-    .info-card-sub {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
+    .tb-high     { background: rgba(227,66,52,0.12); color: var(--tomato);     border: 1px solid rgba(227,66,52,0.25); }
+    .tb-moderate { background: rgba(245,166,35,0.12); color: var(--amber);     border: 1px solid rgba(245,166,35,0.25); }
+    .tb-routine  { background: rgba(212,255,63,0.08); color: var(--chartreuse);border: 1px solid rgba(212,255,63,0.2); }
+    .tb-border   { background: rgba(203,179,232,0.1); color: var(--lavender);  border: 1px solid rgba(203,179,232,0.2); }
 
-    /* =====================================================================
-       Clinical block
-       ===================================================================== */
-    .clinical-block {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px 18px;
-    }
-
-    .clinical-label {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    .clinical-action {
-      font-size: 14px;
-      color: var(--text);
-      line-height: 1.55;
-    }
-
-    .clinical-triage {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      margin-top: 10px;
-      font-size: 12px;
-      font-weight: 500;
-      padding: 4px 10px;
-      border-radius: 100px;
-    }
-
-    .triage-high     { background: rgba(227,66,52,0.12);  color: var(--tomato);      border: 1px solid rgba(227,66,52,0.25); }
-    .triage-moderate { background: rgba(245,166,35,0.12); color: var(--amber);       border: 1px solid rgba(245,166,35,0.25); }
-    .triage-routine  { background: rgba(212,255,63,0.08); color: var(--chartreuse);  border: 1px solid rgba(212,255,63,0.2); }
-    .triage-border   { background: rgba(203,179,232,0.1); color: var(--lavender);    border: 1px solid rgba(203,179,232,0.25); }
-
-    /* =====================================================================
-       Uncertainty warning
-       ===================================================================== */
-    .uncertainty-banner {
-      display: none;
-      align-items: flex-start;
-      gap: 12px;
+    /* Uncertainty warning */
+    .uncertainty-box {
+      display: none; align-items: flex-start; gap: 10px;
       background: rgba(245,166,35,0.07);
       border: 1px solid rgba(245,166,35,0.25);
-      border-radius: var(--radius);
-      padding: 14px 16px;
+      border-radius: var(--radius-sm); padding: 10px 12px;
     }
 
-    .uncertainty-banner.visible { display: flex; }
+    .uncertainty-box.on { display: flex; }
+    .uncertainty-box svg { width: 15px; height: 15px; color: var(--amber); flex-shrink: 0; margin-top: 1px; }
+    .uncertainty-box p { font-size: 11px; color: var(--muted); line-height: 1.55; }
+    .uncertainty-box strong { color: var(--amber); }
 
-    .uncertainty-icon {
-      flex-shrink: 0;
-      width: 20px; height: 20px;
-      color: var(--amber);
-      margin-top: 1px;
+    /* Demo tag inside result */
+    .demo-tag {
+      display: none; align-items: center; gap: 5px;
+      font-size: 10px; color: var(--amber);
     }
 
-    .uncertainty-text { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
-    .uncertainty-text strong { color: var(--amber); font-weight: 600; }
+    .demo-tag.on { display: inline-flex; }
+    .demo-tag .dt-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
 
-    /* =====================================================================
-       Error banner
-       ===================================================================== */
-    .error-banner {
-      display: none;
-      align-items: flex-start;
-      gap: 12px;
-      background: rgba(227,66,52,0.07);
-      border: 1px solid rgba(227,66,52,0.25);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      margin-bottom: 20px;
-    }
-
-    .error-banner.visible { display: flex; }
-    .error-icon { flex-shrink: 0; width: 18px; height: 18px; color: var(--tomato); margin-top: 1px; }
-    .error-text { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
-    .error-text strong { color: var(--tomato); font-weight: 600; }
-
-    /* =====================================================================
-       Demo banner
-       ===================================================================== */
-    .demo-banner {
-      background: rgba(203,179,232,0.06);
-      border: 1px solid rgba(203,179,232,0.2);
-      border-radius: var(--radius);
-      padding: 12px 16px;
-      margin-bottom: 24px;
+    /* ═══════════════════════════════════════════════════════════
+       RIGHT SIDE — 3D STATS PANEL (floating)
+    ═══════════════════════════════════════════════════════════ */
+    .stats-panel {
+      position: fixed;
+      top: 70px; right: 20px;
+      z-index: 40;
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
-    }
-
-    .demo-banner-icon { color: var(--lavender); flex-shrink: 0; margin-top: 1px; }
-
-    .demo-banner-text {
-      font-size: 12.5px;
-      color: var(--text-muted);
-      line-height: 1.55;
-    }
-
-    .demo-banner-text strong { color: var(--lavender); font-weight: 600; }
-
-    /* =====================================================================
-       Footer
-       ===================================================================== */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 24px 20px;
-      text-align: center;
-      width: 100%;
-    }
-
-    .footer-warning {
-      font-size: 12px;
-      color: var(--text-faint);
-      max-width: 440px;
-      margin: 0 auto 10px;
-      line-height: 1.6;
-    }
-
-    .footer-links {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-
-    .footer-links a {
-      font-size: 11px;
-      color: var(--text-faint);
-      text-decoration: none;
-      transition: color var(--transition);
-    }
-
-    .footer-links a:hover { color: var(--lavender-dim); }
-
-    /* =====================================================================
-       Mono values
-       ===================================================================== */
-    .mono { font-family: 'JetBrains Mono', monospace; }
-
-    /* =====================================================================
-       Scrollbar (subtle)
-       ===================================================================== */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    /* =====================================================================
-       3D Simulation Hero
-       ===================================================================== */
-    .sim-hero {
-      width: 100vw;
-      margin-left: calc(-50vw + 50%);
-      position: relative;
-      height: 440px;
-      background: #0a0a0a;
-      overflow: hidden;
-      border-bottom: 1px solid rgba(0,123,167,0.18);
-    }
-
-    @media (max-width: 600px) { .sim-hero { height: 320px; } }
-
-    .sim-hero canvas {
-      display: block;
-      width: 100% !important;
-      height: 100% !important;
-    }
-
-    /* Sim top-bar overlay */
-    .sim-topbar {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 24px;
+      flex-direction: column;
+      gap: 8px;
+      width: 164px;
       pointer-events: none;
     }
 
-    .sim-brand {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: rgba(255,255,255,0.75);
+    @media (max-width: 700px) { .stats-panel { display: none; } }
+
+    .sp-card {
+      background: rgba(10,10,14,0.72);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 10px 12px;
     }
 
-    .sim-brand .s-cerulean { color: #42c8f0; }
-    .sim-brand .s-rose     { color: #ff2d95; }
+    .spc-lbl { font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 3px; }
+    .spc-val { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #fff; line-height: 1; }
+    .spc-val.c { color: var(--cerulean-l); }
+    .spc-val.r { color: var(--rose); }
+    .spc-sub { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 3px; }
 
-    .sim-badges {
+    /* ═══════════════════════════════════════════════════════════
+       BOTTOM — 3D SIM MODE CONTROLS
+    ═══════════════════════════════════════════════════════════ */
+    .sim-controls {
+      position: fixed;
+      bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 40;
       display: flex;
-      gap: 6px;
-    }
-
-    .sim-badge {
-      display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 3px 9px;
-      border-radius: 100px;
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-    }
-
-    .sb-cerulean {
-      background: rgba(0,123,167,0.14);
-      color: #42c8f0;
-      border: 1px solid rgba(0,123,167,0.3);
-    }
-
-    .sb-rose {
-      background: rgba(255,45,149,0.1);
-      color: #ff2d95;
-      border: 1px solid rgba(255,45,149,0.28);
-    }
-
-    .sim-badge .sdot {
-      width: 4px; height: 4px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    /* Sim mode buttons */
-    .sim-modes {
-      position: absolute;
-      bottom: 16px;
-      left: 24px;
-      z-index: 10;
-      display: flex;
       gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    .sim-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 12px;
+      background: rgba(10,10,14,0.72);
+      border: 1px solid var(--glass-border);
       border-radius: 100px;
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(10,10,10,0.75);
-      color: rgba(255,255,255,0.45);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      transition: all 0.18s ease;
+      padding: 6px 8px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       pointer-events: all;
     }
 
-    .sim-btn:hover { color: #42c8f0; border-color: rgba(0,123,167,0.4); }
+    @media (max-width: 700px) { .sim-controls { bottom: 10px; } }
 
-    .sim-btn.active-cerulean {
-      background: rgba(0,123,167,0.16);
-      border-color: rgba(0,123,167,0.5);
-      color: #42c8f0;
+    .sim-controls .ctrl-label {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+      text-transform: uppercase; color: rgba(255,255,255,0.3);
+      padding: 0 6px; white-space: nowrap;
     }
 
-    .sim-btn.active-rose {
+    .sim-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 100px;
+      font-size: 11px; font-weight: 500;
+      cursor: pointer; border: 1px solid transparent;
+      background: transparent; color: rgba(255,255,255,0.4);
+      transition: all 0.15s ease; white-space: nowrap;
+    }
+
+    .sim-btn:hover { color: var(--cerulean-l); border-color: rgba(0,123,167,0.3); }
+
+    .sim-btn.active-c {
+      background: rgba(0,123,167,0.16);
+      border-color: rgba(0,123,167,0.45);
+      color: var(--cerulean-l);
+    }
+
+    .sim-btn.active-r {
       background: rgba(255,45,149,0.12);
       border-color: rgba(255,45,149,0.4);
-      color: #ff2d95;
+      color: var(--rose);
     }
 
-    .sim-btn .sdot {
-      width: 5px; height: 5px;
-      border-radius: 50%;
-      background: currentColor;
-      flex-shrink: 0;
-    }
+    .sim-btn .sdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
-    /* Sim HUD bottom-right */
-    .sim-hud-right {
-      position: absolute;
-      bottom: 16px;
-      right: 24px;
-      z-index: 10;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      pointer-events: none;
-    }
+    /* Divider in controls */
+    .ctrl-divider { width: 1px; height: 18px; background: var(--glass-border); flex-shrink: 0; }
 
-    .sim-stat {
-      background: rgba(10,10,10,0.72);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px;
-      padding: 7px 11px;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      text-align: center;
-    }
-
-    .ss-label { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 2px; }
-    .ss-val   { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: #fff; }
-    .ss-val.cerulean { color: #42c8f0; }
-    .ss-val.rose     { color: #ff2d95; }
-
-    /* BMD strip */
-    .sim-bmd-strip {
-      position: absolute;
+    /* ═══════════════════════════════════════════════════════════
+       BMD STRIP — bottom bar
+    ═══════════════════════════════════════════════════════════ */
+    .bmd-strip {
+      position: fixed;
       bottom: 0; left: 0; right: 0;
       height: 3px;
-      background: rgba(255,255,255,0.05);
-      z-index: 10;
+      background: rgba(255,255,255,0.04);
+      z-index: 50;
     }
 
-    .sim-bmd-bar {
+    .bmd-bar {
       height: 100%;
-      background: linear-gradient(90deg, #007ba7 0%, #42c8f0 60%, #ff2d95 100%);
-      transition: width 0.1s linear;
+      background: linear-gradient(90deg, var(--cerulean) 0%, var(--cerulean-l) 60%, var(--rose) 100%);
+      transition: width 0.12s linear;
     }
 
-    /* Drag hint */
-    .sim-drag-hint {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 11px;
-      color: rgba(255,255,255,0.15);
+    /* ═══════════════════════════════════════════════════════════
+       DRAG HINT (fades out on first drag)
+    ═══════════════════════════════════════════════════════════ */
+    .drag-hint {
+      position: fixed;
+      bottom: 70px; left: 50%; transform: translateX(-50%);
+      z-index: 10;
+      font-size: 11px; color: rgba(255,255,255,0.18);
+      letter-spacing: 0.06em; text-transform: uppercase;
       pointer-events: none;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      text-align: center;
-      transition: opacity 1s;
+      transition: opacity 1s ease;
     }
 
-    .sim-drag-hint.hidden { opacity: 0; }
+    .drag-hint.gone { opacity: 0; }
+
+    /* ═══════════════════════════════════════════════════════════
+       FOOTER DISCLAIMER
+    ═══════════════════════════════════════════════════════════ */
+    .disclaimer {
+      position: fixed;
+      bottom: 8px; left: 50%; transform: translateX(-50%);
+      z-index: 50;
+      font-size: 10px; color: rgba(255,255,255,0.18);
+      white-space: nowrap; letter-spacing: 0.03em;
+      pointer-events: none;
+    }
+
+    @media (max-width: 700px) { .disclaimer { display: none; } }
+
+    /* ═══════════════════════════════════════════════════════════
+       LEGEND (bottom right)
+    ═══════════════════════════════════════════════════════════ */
+    .legend {
+      position: fixed;
+      bottom: 70px; right: 20px;
+      z-index: 40;
+      background: rgba(10,10,14,0.72);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 10px 13px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      pointer-events: none;
+    }
+
+    @media (max-width: 700px) { .legend { display: none; } }
+
+    .legend-title { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 8px; }
+
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
+    .legend-item:last-child { margin-bottom: 0; }
+
+    .l-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .ld-c { background: var(--cerulean); box-shadow: 0 0 5px var(--cerulean); }
+    .ld-m { background: #6e4dbf; }
+    .ld-r { background: var(--rose); box-shadow: 0 0 5px var(--rose); }
   </style>
 </head>
 <body>
 
-<!-- ===== 3D TRABECULAR BONE SIMULATION HERO ===== -->
-<div class="sim-hero" id="sim-hero">
+<!-- ═══════════════════════════════════════════════════════════
+     FULL-SCREEN 3D CANVAS — always behind everything
+═══════════════════════════════════════════════════════════ -->
+<canvas id="bone-canvas"></canvas>
+<div id="webgl-err">WebGL 2 unavailable in this browser.<br>3D simulation cannot start.</div>
 
-  <canvas id="bone-canvas"></canvas>
-
-  <!-- Top bar -->
-  <div class="sim-topbar">
-    <span class="sim-brand">
-      Trabecular Bone <span class="s-cerulean">Microarchitecture</span> <span class="s-rose">3D</span>
-    </span>
-    <div class="sim-badges">
-      <span class="sim-badge sb-cerulean"><span class="sdot"></span>Cerulean = Dense</span>
-      <span class="sim-badge sb-rose"><span class="sdot"></span>Rose = Porous</span>
+<!-- ═══════════════════════════════════════════════════════════
+     TOP NAVIGATION BAR
+═══════════════════════════════════════════════════════════ -->
+<nav class="topbar">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <div>
+      <span class="brand-name">Ortho<span class="a1">Scan</span> <span class="a2">AI</span></span>
+      <span class="brand-sub"> · Knee Radiography Pathology Detector</span>
     </div>
   </div>
-
-  <!-- Mode selector -->
-  <div class="sim-modes">
-    <button class="sim-btn active-cerulean" id="sbtn-healthy"      onclick="simSetMode('healthy')">
-      <span class="sdot"></span>Healthy
-    </button>
-    <button class="sim-btn" id="sbtn-degrading"   onclick="simSetMode('degrading')">
-      <span class="sdot"></span>Degrading
-    </button>
-    <button class="sim-btn active-rose" style="display:none" id="sbtn-osteo" onclick="simSetMode('osteoporotic')">
-      <span class="sdot"></span>Osteoporotic
-    </button>
+  <div class="nav-right">
+    {% if demo_mode %}
+    <span class="nav-pill np-demo"><span class="nav-dot"></span>Demo Mode</span>
+    {% else %}
+    <span class="nav-pill np-green"><span class="nav-dot"></span>DenseNet-121 Loaded</span>
+    {% endif %}
+    <span class="nav-pill np-lavender">ONNX Runtime</span>
   </div>
-  <!-- Show osteo after a delay -->
-  <script>setTimeout(()=>{ document.getElementById('sbtn-osteo').style.display='inline-flex'; }, 800);</script>
+</nav>
 
-  <!-- Stats HUD -->
-  <div class="sim-hud-right">
-    <div class="sim-stat">
-      <div class="ss-label">BMD</div>
-      <div class="ss-val cerulean" id="ss-bmd">1.24</div>
-    </div>
-    <div class="sim-stat">
-      <div class="ss-label">T-Score</div>
-      <div class="ss-val" id="ss-tscore">+0.8</div>
-    </div>
-    <div class="sim-stat">
-      <div class="ss-label">Porosity</div>
-      <div class="ss-val rose" id="ss-poros">12%</div>
-    </div>
-  </div>
+<!-- ═══════════════════════════════════════════════════════════
+     LEFT — ANALYSIS PANEL
+═══════════════════════════════════════════════════════════ -->
+<aside class="analysis-panel">
 
-  <!-- BMD progress strip at bottom -->
-  <div class="sim-bmd-strip">
-    <div class="sim-bmd-bar" id="sim-bmd-bar" style="width:85%"></div>
-  </div>
-
-  <!-- Drag hint -->
-  <div class="sim-drag-hint" id="sim-drag-hint">Drag to rotate &nbsp;·&nbsp; Scroll to zoom</div>
-
-</div><!-- /sim-hero -->
-
-<div class="shell">
-
-  <!-- ===== HEADER ===== -->
-  <header>
-    <p class="header-eyebrow">Deep Learning · Orthopedic Imaging</p>
-    <h1 class="header-title">OrthoScan <span class="accent">AI</span></h1>
-    <p class="header-subtitle">Knee Radiography Pathology Detector — DenseNet-121 · ONNX Runtime</p>
-    <div class="header-meta">
-      {% if demo_mode %}
-      <span class="pill pill-amber"><span class="dot"></span>Demo Mode</span>
-      {% else %}
-      <span class="pill pill-green"><span class="dot"></span>Model Loaded</span>
-      {% endif %}
-      <span class="pill pill-lavender">Binary Classification</span>
-      <span class="pill pill-lavender">Uncertainty Flagging</span>
-    </div>
-  </header>
-
-  <!-- ===== DEMO NOTICE ===== -->
-  {% if demo_mode %}
-  <div class="demo-banner">
-    <svg class="demo-banner-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-    <p class="demo-banner-text">
-      <strong>Demo Mode active.</strong> No ONNX model file is loaded. Predictions are deterministic simulations based on image hash — useful for testing the UI. To enable real inference, deploy <code>ortho_knee_model.onnx</code> to the server and set <code>ONNX_MODEL_PATH</code>.
-    </p>
-  </div>
-  {% endif %}
-
-  <!-- ===== ERROR BANNER ===== -->
-  <div class="error-banner" id="error-banner">
-    <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-    </svg>
-    <p class="error-text"><strong>Error</strong> — <span id="error-message"></span></p>
-  </div>
-
-  <!-- ===== UPLOAD ZONE ===== -->
-  <section class="upload-section">
-    <label class="upload-label">Radiograph Image</label>
+  <!-- Upload card -->
+  <div class="glass-card">
+    <p class="sec-label">Radiograph Input</p>
     <div class="drop-zone" id="drop-zone">
-      <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/bmp" />
-
-      <!-- Empty placeholder -->
+      <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/bmp"/>
       <div class="dz-empty" id="dz-empty">
-        <div class="dz-icon">
+        <div class="dz-ico">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
             <polyline points="21 15 16 10 5 21"/>
           </svg>
         </div>
-        <p class="dz-primary">Drop knee X-ray here or click to browse</p>
-        <p class="dz-secondary">JPEG · PNG · WebP · BMP &nbsp;·&nbsp; Max 20 MB<br/>AP view, anterior-posterior projection preferred</p>
+        <p class="dz-p">Drop knee X-ray or click to browse</p>
+        <p class="dz-s">JPEG · PNG · WebP · Max 20 MB<br/>AP view preferred</p>
       </div>
-
-      <!-- Preview -->
       <div class="dz-preview" id="dz-preview">
-        <img class="dz-thumb" id="dz-thumb" src="" alt="Preview" />
-        <div class="dz-file-info">
-          <p class="dz-filename" id="dz-filename">filename.jpg</p>
-          <p class="dz-filesize" id="dz-filesize">0 KB</p>
-          <p class="dz-change">Click to change file</p>
+        <img class="dz-thumb" id="dz-thumb" src="" alt=""/>
+        <div class="dz-info">
+          <p class="dz-fname" id="dz-fname">—</p>
+          <p class="dz-fsize" id="dz-fsize">—</p>
+          <p class="dz-change">Click to change</p>
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- ===== ANALYZE BUTTON ===== -->
-  <button class="btn-analyze" id="btn-analyze" disabled>
-    <div class="spinner"></div>
-    <span class="btn-label">Analyze Radiograph</span>
-  </button>
+  <!-- Error -->
+  <div class="err-banner glass-card" id="err-banner" style="padding:10px 12px;">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+    <p><strong>Error</strong> — <span id="err-msg"></span></p>
+  </div>
 
-  <div class="divider"></div>
+  <!-- Analyze button card -->
+  <div class="glass-card" style="padding:12px;">
+    <button class="btn-analyze" id="btn-analyze" disabled>
+      <div class="sp"></div>
+      <span class="lbl">Analyze Radiograph</span>
+    </button>
+  </div>
 
-  <!-- ===== RESULTS PANEL ===== -->
-  <section id="results-panel">
+  <!-- Results card -->
+  <div class="glass-card" id="results-card">
 
-    <!-- Prediction headline -->
-    <div class="result-header">
-      <div class="result-label-group">
-        <p class="result-eyebrow">AI Assessment</p>
-        <p class="result-prediction" id="result-prediction">—</p>
+    <!-- Headline -->
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:12px;">
+      <div>
+        <p class="sec-label" style="margin-bottom:4px;">AI Assessment</p>
+        <p class="result-prediction" id="result-pred">—</p>
       </div>
-      <span class="pill" id="demo-result-pill" style="display:none; align-self:flex-start; margin-top:4px;">
-        <span class="dot"></span>Simulated
-      </span>
+      <span class="demo-tag" id="demo-tag"><span class="dt-dot"></span>Simulated</span>
     </div>
 
     <!-- Probability gauge -->
-    <div class="gauge-section">
-      <div class="gauge-label-row">
+    <div style="margin-bottom:14px;">
+      <div class="gauge-row">
         <span class="gauge-title">Osteoporosis Probability</span>
-        <span class="gauge-value mono" id="gauge-value-text">—</span>
+        <span class="gauge-val" id="g-val">—</span>
       </div>
       <div class="gauge-track">
-        <div class="gauge-fill" id="gauge-fill" style="width:0%"></div>
-        <div class="gauge-threshold" id="gauge-threshold" style="left:50%"></div>
+        <div class="gauge-fill" id="g-fill" style="width:0%"></div>
+        <div class="gauge-thr" id="g-thr" style="left:50%"></div>
       </div>
-      <div class="gauge-axis">
-        <span>0%</span>
-        <span>50%</span>
-        <span>100%</span>
-      </div>
+      <div class="gauge-axis"><span>0%</span><span>50%</span><span>100%</span></div>
     </div>
 
-    <!-- Confidence + Logit cards -->
-    <div class="info-grid">
-      <div class="info-card">
-        <p class="info-card-label">Confidence</p>
-        <p class="info-card-value mono" id="card-confidence">—</p>
-        <p class="info-card-sub">Model certainty in predicted class</p>
+    <!-- Mini stats -->
+    <div class="stats-grid" style="margin-bottom:12px;">
+      <div class="stat-box">
+        <p class="sb-lbl">Confidence</p>
+        <p class="sb-val" id="s-conf">—</p>
       </div>
-      <div class="info-card">
-        <p class="info-card-label">Threshold Used</p>
-        <p class="info-card-value mono" id="card-threshold">—</p>
-        <p class="info-card-sub">Youden's J optimised decision boundary</p>
+      <div class="stat-box">
+        <p class="sb-lbl">Threshold</p>
+        <p class="sb-val" id="s-thr">—</p>
       </div>
     </div>
 
     <!-- Uncertainty warning -->
-    <div class="uncertainty-banner" id="uncertainty-banner">
-      <svg class="uncertainty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <div class="uncertainty-box" id="unc-box" style="margin-bottom:12px;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
         <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
       </svg>
-      <p class="uncertainty-text">
-        <strong>Uncertainty zone detected.</strong> This prediction falls within ±0.08 of the decision threshold. Per DOI:10.1007/s10278-024-01369-3, cases in this range have the highest human-model disagreement rate. <strong>Manual radiologist review is mandatory.</strong>
-      </p>
+      <p><strong>Uncertainty zone.</strong> Within ±0.08 of threshold. Radiologist review mandatory per DOI:10.1007/s10278-024-01369-3.</p>
     </div>
 
     <!-- Clinical recommendation -->
-    <div class="clinical-block">
-      <p class="clinical-label">Clinical Recommendation</p>
-      <p class="clinical-action" id="clinical-action">—</p>
-      <span class="clinical-triage" id="clinical-triage">—</span>
+    <div class="clinical-box">
+      <p class="sec-label" style="margin-bottom:6px;">Clinical Recommendation</p>
+      <p class="clinical-action" id="c-action">—</p>
+      <span class="triage-badge" id="c-triage">—</span>
     </div>
 
-  </section><!-- /results-panel -->
+  </div><!-- /results-card -->
 
-</div><!-- /shell -->
-
-<!-- ===== FOOTER ===== -->
-<footer>
-  <p class="footer-warning">
-    ⚠️ For <strong>research and educational purposes only</strong>. This tool does not constitute medical advice and must not be used for clinical diagnosis or treatment decisions. Always consult a qualified radiologist.
-  </p>
-  <div class="footer-links">
-    <a href="/health">API Health</a>
-    <a href="/docs">API Docs</a>
-    <a href="https://github.com/ganapathi-ai/knee_osteoporosis" target="_blank" rel="noopener">GitHub</a>
-    <a href="https://arxiv.org/abs/2604.20268" target="_blank" rel="noopener">Reference Paper</a>
+  <!-- Disclaimer (mobile) -->
+  <div class="glass-card" style="padding:10px 12px; display:none" id="mobile-disc">
+    <p style="font-size:10px; color:var(--faint); line-height:1.5; text-align:center;">
+      ⚠️ Research use only — not for clinical diagnosis.
+    </p>
   </div>
-</footer>
 
-<!-- ===== JAVASCRIPT ===== -->
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════
+     RIGHT — 3D SIM STATS PANEL
+═══════════════════════════════════════════════════════════ -->
+<div class="stats-panel">
+  <div class="sp-card">
+    <div class="spc-lbl">Bone Mineral Density</div>
+    <div class="spc-val c" id="sp-bmd">1.24</div>
+    <div class="spc-sub">g/cm² (DXA)</div>
+  </div>
+  <div class="sp-card">
+    <div class="spc-lbl">T-Score</div>
+    <div class="spc-val" id="sp-tscore">+0.8</div>
+    <div class="spc-sub">WHO classification</div>
+  </div>
+  <div class="sp-card">
+    <div class="spc-lbl">Porosity Index</div>
+    <div class="spc-val r" id="sp-poros">12%</div>
+    <div class="spc-sub">≤20% = normal</div>
+  </div>
+  <div class="sp-card">
+    <div class="spc-lbl">Active Struts</div>
+    <div class="spc-val" id="sp-nodes">512</div>
+    <div class="spc-sub">trabecular nodes</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     BOTTOM — SIM MODE CONTROLS
+═══════════════════════════════════════════════════════════ -->
+<div class="sim-controls">
+  <span class="ctrl-label">Bone State</span>
+  <div class="ctrl-divider"></div>
+  <button class="sim-btn active-c" id="sbtn-healthy"   onclick="simSetMode('healthy')">
+    <span class="sdot"></span>Healthy
+  </button>
+  <button class="sim-btn" id="sbtn-degrading" onclick="simSetMode('degrading')">
+    <span class="sdot"></span>Degrading
+  </button>
+  <button class="sim-btn" id="sbtn-osteo"    onclick="simSetMode('osteoporotic')">
+    <span class="sdot"></span>Osteoporotic
+  </button>
+  <div class="ctrl-divider"></div>
+  <span class="ctrl-label" style="font-size:9px; color:var(--faint);">Drag to rotate</span>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-title">Density Map</div>
+  <div class="legend-item"><span class="l-dot ld-c"></span>Dense cortical</div>
+  <div class="legend-item"><span class="l-dot ld-m"></span>Transition zone</div>
+  <div class="legend-item"><span class="l-dot ld-r"></span>Porous / degraded</div>
+</div>
+
+<!-- BMD strip -->
+<div class="bmd-strip"><div class="bmd-bar" id="bmd-bar" style="width:85%"></div></div>
+
+<!-- Drag hint -->
+<div class="drag-hint" id="drag-hint">Drag canvas to rotate · Scroll to zoom</div>
+
+<!-- Desktop disclaimer -->
+<div class="disclaimer">⚠ For research use only — not for clinical diagnosis or treatment decisions.</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT — Upload + Inference
+═══════════════════════════════════════════════════════════ -->
 <script>
-  'use strict';
+{% raw %}
+'use strict';
 
-  /* -----------------------------------------------------------------------
-     Elements
-  ----------------------------------------------------------------------- */
-  const dropZone      = document.getElementById('drop-zone');
-  const fileInput     = document.getElementById('file-input');
-  const dzEmpty       = document.getElementById('dz-empty');
-  const dzPreview     = document.getElementById('dz-preview');
-  const dzThumb       = document.getElementById('dz-thumb');
-  const dzFilename    = document.getElementById('dz-filename');
-  const dzFilesize    = document.getElementById('dz-filesize');
-  const btnAnalyze    = document.getElementById('btn-analyze');
-  const resultsPanel  = document.getElementById('results-panel');
-  const errorBanner   = document.getElementById('error-banner');
-  const errorMessage  = document.getElementById('error-message');
+// ── DOM refs ───────────────────────────────────────────────
+const dropZone  = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const dzEmpty   = document.getElementById('dz-empty');
+const dzPreview = document.getElementById('dz-preview');
+const dzThumb   = document.getElementById('dz-thumb');
+const dzFname   = document.getElementById('dz-fname');
+const dzFsize   = document.getElementById('dz-fsize');
+const btnAn     = document.getElementById('btn-analyze');
+const errBanner = document.getElementById('err-banner');
+const errMsg    = document.getElementById('err-msg');
+const resultsCard = document.getElementById('results-card');
 
-  // Result elements
-  const resultPrediction   = document.getElementById('result-prediction');
-  const gaugeValueText     = document.getElementById('gauge-value-text');
-  const gaugeFill          = document.getElementById('gauge-fill');
-  const gaugeThreshold     = document.getElementById('gauge-threshold');
-  const cardConfidence     = document.getElementById('card-confidence');
-  const cardThreshold      = document.getElementById('card-threshold');
-  const uncertaintyBanner  = document.getElementById('uncertainty-banner');
-  const clinicalAction     = document.getElementById('clinical-action');
-  const clinicalTriage     = document.getElementById('clinical-triage');
-  const demoResultPill     = document.getElementById('demo-result-pill');
+const resultPred = document.getElementById('result-pred');
+const gVal   = document.getElementById('g-val');
+const gFill  = document.getElementById('g-fill');
+const gThr   = document.getElementById('g-thr');
+const sConf  = document.getElementById('s-conf');
+const sThr   = document.getElementById('s-thr');
+const uncBox = document.getElementById('unc-box');
+const cAction= document.getElementById('c-action');
+const cTriage= document.getElementById('c-triage');
+const demoTag= document.getElementById('demo-tag');
 
-  let selectedFile = null;
+let selectedFile = null;
 
-  /* -----------------------------------------------------------------------
-     Utility: format bytes
-  ----------------------------------------------------------------------- */
-  function formatBytes(bytes) {
-    if (bytes < 1024)        return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+function fmtBytes(b) {
+  if (b < 1024) return b+' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1)+' KB';
+  return (b/1048576).toFixed(2)+' MB';
+}
+
+function fmt(v) { return (v*100).toFixed(1)+'%'; }
+
+function showErr(msg) { errMsg.textContent = msg; errBanner.classList.add('on'); }
+function hideErr()    { errBanner.classList.remove('on'); }
+
+// ── File selection ─────────────────────────────────────────
+function handleFile(file) {
+  if (!file) return;
+  const ok = ['image/jpeg','image/png','image/webp','image/bmp'];
+  if (file.type && !ok.includes(file.type)) { showErr('Unsupported format. Use JPEG or PNG.'); return; }
+  if (file.size > 20*1024*1024)             { showErr('File too large (max 20 MB).'); return; }
+  hideErr();
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => { dzThumb.src = e.target.result; };
+  reader.readAsDataURL(file);
+  dzFname.textContent = file.name;
+  dzFsize.textContent = fmtBytes(file.size);
+  dzEmpty.style.display = 'none';
+  dzPreview.classList.add('on');
+  btnAn.disabled = false;
+  resultsCard.classList.remove('on');
+}
+
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+// ── Render results ─────────────────────────────────────────
+function getState(d) {
+  if (d.uncertainty_zone)    return 'uncertain';
+  if (d.pathology_detected)  return 'pathology';
+  return 'normal';
+}
+
+function triageCls(t) {
+  const s = t.toLowerCase();
+  if (s.includes('high'))       return 'tb-high';
+  if (s.includes('moderate'))   return 'tb-moderate';
+  if (s.includes('borderline')) return 'tb-border';
+  return 'tb-routine';
+}
+
+function renderResult(d) {
+  const state = getState(d);
+
+  resultPred.textContent = d.prediction;
+  resultPred.className   = 'result-prediction rp-' + state;
+
+  const prob = d.osteoporosis_probability;
+  const thr  = d.threshold_used;
+  gVal.textContent = fmt(prob);
+  gFill.className  = 'gauge-fill gf-' + state;
+  gFill.style.width = (prob * 100).toFixed(2) + '%';
+  gThr.style.left  = (thr * 100).toFixed(2) + '%';
+  gThr.setAttribute('data-lbl', 'T=' + thr.toFixed(3));
+
+  sConf.textContent = fmt(d.confidence);
+  sThr.textContent  = d.threshold_used.toFixed(4);
+
+  uncBox.classList.toggle('on', !!d.uncertainty_zone);
+  cAction.textContent = d.clinical_action;
+  cTriage.textContent = d.clinical_triage;
+  cTriage.className   = 'triage-badge ' + triageCls(d.clinical_triage);
+
+  demoTag.classList.toggle('on', !!d.demo_mode);
+
+  resultsCard.classList.add('on');
+
+  // ── Drive the 3D simulation from the prediction ──────────
+  if (d.uncertainty_zone) {
+    simSetMode('degrading');
+  } else if (d.pathology_detected) {
+    const p = d.osteoporosis_probability;
+    simSetMode(p >= 0.70 ? 'osteoporotic' : 'degrading');
+  } else {
+    simSetMode('healthy');
   }
+}
 
-  /* -----------------------------------------------------------------------
-     Utility: format percentage
-  ----------------------------------------------------------------------- */
-  function fmt(val) {
-    return (val * 100).toFixed(1) + '%';
-  }
+// ── Analyze ────────────────────────────────────────────────
+btnAn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  hideErr();
+  btnAn.classList.add('loading');
+  btnAn.disabled = true;
+  btnAn.querySelector('.lbl').textContent = 'Analyzing…';
 
-  /* -----------------------------------------------------------------------
-     Show / hide error banner
-  ----------------------------------------------------------------------- */
-  function showError(msg) {
-    errorMessage.textContent = msg;
-    errorBanner.classList.add('visible');
-  }
+  const fd = new FormData();
+  fd.append('file', selectedFile);
 
-  function hideError() {
-    errorBanner.classList.remove('visible');
-  }
-
-  /* -----------------------------------------------------------------------
-     File selection handler
-  ----------------------------------------------------------------------- */
-  function handleFile(file) {
-    if (!file) return;
-
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
-    if (!allowed.includes(file.type)) {
-      showError('Unsupported file type. Please upload a JPEG, PNG, WebP, or BMP image.');
-      return;
+  try {
+    const r = await fetch('/predict', { method: 'POST', body: fd });
+    if (!r.ok) {
+      let detail = `HTTP ${r.status}`;
+      try { const j = await r.json(); detail = j.detail || detail; } catch(_){}
+      throw new Error(detail);
     }
-    if (file.size > 20 * 1024 * 1024) {
-      showError('File exceeds 20 MB limit.');
-      return;
-    }
-
-    hideError();
-    selectedFile = file;
-
-    // Build thumbnail
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      dzThumb.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-
-    dzFilename.textContent = file.name;
-    dzFilesize.textContent = formatBytes(file.size);
-
-    dzEmpty.style.display = 'none';
-    dzPreview.classList.add('visible');
-
-    btnAnalyze.disabled = false;
-
-    // Hide previous results when new file selected
-    resultsPanel.classList.remove('visible');
-    resultsPanel.style.display = 'none';
-    uncertaintyBanner.classList.remove('visible');
+    const data = await r.json();
+    renderResult(data);
+  } catch(e) {
+    showErr(e.message || 'Network error. Please try again.');
+  } finally {
+    btnAn.classList.remove('loading');
+    btnAn.disabled = false;
+    btnAn.querySelector('.lbl').textContent = 'Analyze Radiograph';
   }
-
-  /* -----------------------------------------------------------------------
-     File input events
-  ----------------------------------------------------------------------- */
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files && fileInput.files[0]) {
-      handleFile(fileInput.files[0]);
-    }
-  });
-
-  // Drag & drop
-  dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('drag-over');
-  });
-
-  dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('drag-over');
-  });
-
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFile(file);
-    }
-  });
-
-  /* -----------------------------------------------------------------------
-     Determine result state from API response
-  ----------------------------------------------------------------------- */
-  function getState(data) {
-    if (data.uncertainty_zone) return 'uncertain';
-    if (data.pathology_detected) return 'pathology';
-    return 'normal';
-  }
-
-  /* -----------------------------------------------------------------------
-     Determine triage CSS class
-  ----------------------------------------------------------------------- */
-  function triageClass(triageText) {
-    const t = triageText.toLowerCase();
-    if (t.includes('high'))      return 'triage-high';
-    if (t.includes('moderate'))  return 'triage-moderate';
-    if (t.includes('borderline'))return 'triage-border';
-    return 'triage-routine';
-  }
-
-  /* -----------------------------------------------------------------------
-     Render results
-  ----------------------------------------------------------------------- */
-  function renderResults(data) {
-    const state = getState(data);
-
-    // Prediction label
-    resultPrediction.textContent = data.prediction;
-    resultPrediction.className = 'result-prediction ' + state;
-
-    // Probability gauge
-    const prob = data.osteoporosis_probability;
-    const thr  = data.threshold_used;
-    gaugeValueText.textContent = fmt(prob);
-
-    // Reset fill classes
-    gaugeFill.className = 'gauge-fill ' + state;
-    gaugeFill.style.width = (prob * 100).toFixed(2) + '%';
-
-    // Threshold marker
-    gaugeThreshold.style.left = (thr * 100).toFixed(2) + '%';
-    gaugeThreshold.setAttribute('data-label', 'T=' + thr.toFixed(2));
-
-    // Info cards
-    cardConfidence.textContent = fmt(data.confidence);
-    cardThreshold.textContent  = data.threshold_used.toFixed(4);
-
-    // Uncertainty banner
-    if (data.uncertainty_zone) {
-      uncertaintyBanner.classList.add('visible');
-    } else {
-      uncertaintyBanner.classList.remove('visible');
-    }
-
-    // Clinical block
-    clinicalAction.textContent = data.clinical_action;
-    clinicalTriage.textContent = data.clinical_triage;
-    clinicalTriage.className   = 'clinical-triage ' + triageClass(data.clinical_triage);
-
-    // Demo pill
-    if (data.demo_mode) {
-      demoResultPill.style.display = 'inline-flex';
-      demoResultPill.className = 'pill pill-amber';
-    } else {
-      demoResultPill.style.display = 'none';
-    }
-
-    // Show panel
-    resultsPanel.style.display = 'flex';
-    requestAnimationFrame(() => {
-      resultsPanel.classList.add('visible');
-    });
-  }
-
-  /* -----------------------------------------------------------------------
-     Analyze button: POST to /predict
-  ----------------------------------------------------------------------- */
-  btnAnalyze.addEventListener('click', async () => {
-    if (!selectedFile) return;
-
-    hideError();
-    btnAnalyze.classList.add('loading');
-    btnAnalyze.disabled = true;
-    btnAnalyze.querySelector('.btn-label').textContent = 'Analyzing…';
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
-    try {
-      const resp = await fetch('/predict', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!resp.ok) {
-        let detail = `HTTP ${resp.status}`;
-        try {
-          const errJson = await resp.json();
-          detail = errJson.detail || detail;
-        } catch (_) {}
-        throw new Error(detail);
-      }
-
-      const data = await resp.json();
-      renderResults(data);
-
-    } catch (err) {
-      showError(err.message || 'Network error. Please try again.');
-    } finally {
-      btnAnalyze.classList.remove('loading');
-      btnAnalyze.disabled = false;
-      btnAnalyze.querySelector('.btn-label').textContent = 'Analyze Radiograph';
-    }
-  });
+});
+{% endraw %}
 </script>
 
-<!-- ============================================================
-     3D Trabecular Bone Simulation — Pure WebGL 2
-     Colors: Jet Black #0a0a0a | Cerulean #007ba7 | Neon Rose #ff2d95
-     Context: Knee femoral condyle trabecular microarchitecture,
-              animated bone mineral density degradation (osteoporosis)
-     ============================================================ -->
+<!-- ═══════════════════════════════════════════════════════════
+     WEBGL 2 — 3D TRABECULAR BONE SIMULATION
+     Jet Black #0a0a0a | Cerulean #007ba7 | Neon Rose #ff2d95
+     Femoral condyle trabecular microarchitecture, animated
+     bone mineral density degradation (osteoporosis model)
+═══════════════════════════════════════════════════════════ -->
 <script>
+{% raw %}
 (function() {
 'use strict';
 
 const canvas = document.getElementById('bone-canvas');
-if (!canvas) return;
-const gl = canvas.getContext('webgl2', { antialias: true, alpha: false, depth: true, powerPreference: 'high-performance' });
-if (!gl) { canvas.parentElement.style.display='none'; return; }
+const gl = canvas.getContext('webgl2', {
+  antialias: true, alpha: false, depth: true,
+  powerPreference: 'high-performance'
+});
+if (!gl) {
+  console.error('OrthoScan: WebGL 2 not supported.');
+  var eb = document.getElementById('webgl-err');
+  if (eb) eb.style.display = 'block';
+  return;
+}
 
-// ── Resize canvas to its CSS size ────────────────────────────
+// Use window.innerWidth/Height — reliable for position:fixed canvas
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width  = canvas.clientWidth  * dpr;
-  canvas.height = canvas.clientHeight * dpr;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
   gl.viewport(0, 0, canvas.width, canvas.height);
 }
-resize();
-new ResizeObserver(resize).observe(canvas);
+// Delay first resize by one frame so the DOM/CSS is fully laid out
+requestAnimationFrame(function() { resize(); });
+window.addEventListener('resize', resize);
 
-// ── Shader sources ───────────────────────────────────────────
+// ── Shaders ──────────────────────────────────────────────
 const VS_NODE = `#version 300 es
 precision highp float;
 uniform mat4 u_mvp;
-uniform float u_time;
-in vec3  a_pos;
-in vec3  a_col;
-in float a_alive;
-out vec3  v_col;
-out float v_alive;
+in vec3  a_pos; in vec3 a_col; in float a_alive;
+out vec3 v_col; out float v_alive;
 void main() {
-  v_col   = a_col;
-  v_alive = a_alive;
-  vec4 p = u_mvp * vec4(a_pos, 1.0);
-  gl_Position = p;
-  float sz = 6.0 * a_alive / (0.4 + abs(p.z) * 0.15);
-  gl_PointSize = clamp(sz, 1.0, 10.0);
+  v_col=a_col; v_alive=a_alive;
+  vec4 p = u_mvp*vec4(a_pos,1.0); gl_Position=p;
+  float sz = 6.5*a_alive/(0.35+abs(p.z)*0.12);
+  gl_PointSize = clamp(sz,1.0,11.0);
 }`;
-
 const FS_NODE = `#version 300 es
 precision highp float;
-in vec3  v_col;
-in float v_alive;
-out vec4 fragColor;
+in vec3 v_col; in float v_alive; out vec4 fc;
 void main() {
-  vec2 uv = gl_PointCoord * 2.0 - 1.0;
-  float d = dot(uv, uv);
-  if (d > 1.0) discard;
-  float core = exp(-d * 3.0) * 0.7;
-  fragColor = vec4(v_col + core, (1.0 - d*d) * v_alive * 0.95);
+  vec2 uv=gl_PointCoord*2.0-1.0; float d=dot(uv,uv);
+  if(d>1.0)discard;
+  float core=exp(-d*2.8)*0.65;
+  fc=vec4(v_col+core,(1.0-d*d)*v_alive*0.94);
 }`;
-
 const VS_EDGE = `#version 300 es
 precision highp float;
 uniform mat4 u_mvp;
-in vec3  a_pos;
-in vec3  a_col;
-in float a_alive;
-out vec3  v_col;
-out float v_alive;
-void main() {
-  v_col   = a_col;
-  v_alive = a_alive;
-  gl_Position = u_mvp * vec4(a_pos, 1.0);
-}`;
-
+in vec3 a_pos; in vec3 a_col; in float a_alive;
+out vec3 v_col; out float v_alive;
+void main(){ v_col=a_col; v_alive=a_alive; gl_Position=u_mvp*vec4(a_pos,1.0); }`;
 const FS_EDGE = `#version 300 es
 precision highp float;
-in vec3  v_col;
-in float v_alive;
-out vec4 fragColor;
-void main() {
-  fragColor = vec4(v_col, v_alive * 0.42);
-}`;
+in vec3 v_col; in float v_alive; out vec4 fc;
+void main(){ fc=vec4(v_col,v_alive*0.40); }`;
 
-// ── Shader/program helpers ───────────────────────────────────
-function compileShader(type, src) {
-  const s = gl.createShader(type);
-  gl.shaderSource(s, src);
-  gl.compileShader(s);
-  return s;
-}
-function makeProgram(vs, fs) {
-  const p = gl.createProgram();
-  gl.attachShader(p, compileShader(gl.VERTEX_SHADER,   vs));
-  gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fs));
-  gl.linkProgram(p);
-  return p;
-}
-const progNode = makeProgram(VS_NODE, FS_NODE);
-const progEdge = makeProgram(VS_EDGE, FS_EDGE);
+function mkShader(t,s){ const sh=gl.createShader(t); gl.shaderSource(sh,s); gl.compileShader(sh); return sh; }
+function mkProg(vs,fs){ const p=gl.createProgram(); gl.attachShader(p,mkShader(gl.VERTEX_SHADER,vs)); gl.attachShader(p,mkShader(gl.FRAGMENT_SHADER,fs)); gl.linkProgram(p); return p; }
+const progN=mkProg(VS_NODE,FS_NODE), progE=mkProg(VS_EDGE,FS_EDGE);
 
-// ── Mat4 math ────────────────────────────────────────────────
-const id4 = () => new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
-function mul4(a, b) {
-  const r = new Float32Array(16);
-  for (let i=0;i<4;i++) for(let j=0;j<4;j++) for(let k=0;k<4;k++) r[i*4+j]+=a[i*4+k]*b[k*4+j];
-  return r;
-}
-function perspective(fov, asp, n, f) {
-  const t = 1/Math.tan(fov*.5), nf=1/(n-f), m=new Float32Array(16);
-  m[0]=t/asp; m[5]=t; m[10]=(f+n)*nf; m[11]=-1; m[14]=2*f*n*nf; return m;
-}
+// ── Mat4 ─────────────────────────────────────────────────
+const id4=()=>new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+function mul4(a,b){ const r=new Float32Array(16); for(let i=0;i<4;i++)for(let j=0;j<4;j++)for(let k=0;k<4;k++)r[i*4+j]+=a[i*4+k]*b[k*4+j]; return r; }
+function persp(fov,asp,n,f){ const t=1/Math.tan(fov*.5),nf=1/(n-f),m=new Float32Array(16); m[0]=t/asp;m[5]=t;m[10]=(f+n)*nf;m[11]=-1;m[14]=2*f*n*nf; return m; }
 function rotX(a){ const c=Math.cos(a),s=Math.sin(a); return new Float32Array([1,0,0,0,0,c,s,0,0,-s,c,0,0,0,0,1]); }
 function rotY(a){ const c=Math.cos(a),s=Math.sin(a); return new Float32Array([c,0,-s,0,0,1,0,0,s,0,c,0,0,0,0,1]); }
 function transl(z){ const m=id4(); m[14]=z; return m; }
 
-// ── Color helpers ────────────────────────────────────────────
-const C_CERULEAN = [0.0,  0.482, 0.655];   // #007ba7
-const C_MID      = [0.42, 0.28,  0.72 ];   // deep purple
-const C_ROSE     = [1.0,  0.176, 0.584];   // #ff2d95
+// ── Colors ───────────────────────────────────────────────
+const CC=[0.0,0.482,0.655], CM=[0.42,0.28,0.72], CR=[1.0,0.176,0.584];
+function lerp3(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
 
-function lerp3(a, b, t) {
-  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+// ── Lattice ───────────────────────────────────────────────
+const GX=11,GY=13,GZ=11, NT=GX*GY*GZ;
+const nPos=new Float32Array(NT*3), nBase=[], nValid=new Uint8Array(NT), nDeath=new Float32Array(NT);
+
+for(let ix=0;ix<GX;ix++) for(let iy=0;iy<GY;iy++) for(let iz=0;iz<GZ;iz++){
+  const i=ix*GY*GZ+iy*GZ+iz;
+  const nx=(ix/(GX-1))*2-1, ny=(iy/(GY-1))*2-1, nz=(iz/(GZ-1))*2-1;
+  const r=(nx*nx)/(0.88*0.88)+((ny+0.08)*(ny+0.08))/(1.06*1.06)+(nz*nz)/(0.82*0.82);
+  if(r>1.0){nValid[i]=0;continue;}
+  nValid[i]=1;
+  const sc=1.95;
+  nPos[i*3+0]=nx*sc+(Math.random()-.5)*0.14;
+  nPos[i*3+1]=ny*sc+(Math.random()-.5)*0.11;
+  nPos[i*3+2]=nz*sc+(Math.random()-.5)*0.14;
+  const depth=Math.sqrt(r);
+  const c=lerp3(CM,CC,Math.pow(depth,0.5));
+  nBase.push(c[0],c[1],c[2]);
+  nDeath[i]=(1-Math.pow(depth,0.4))*0.65+Math.random()*0.35;
 }
 
-// ── Procedural trabecular lattice ────────────────────────────
-// Models cancellous bone cross-section at the femoral condyle.
-// Grid of nodes clipped to an organic ellipsoid, connected by struts.
-const GX=10, GY=12, GZ=10;
-const N_TOTAL = GX*GY*GZ;
-
-const nPos   = new Float32Array(N_TOTAL*3);  // world-space node positions
-const nBasec = [];   // base structural color (depth driven)
-const nValid = new Uint8Array(N_TOTAL);
-const nDeathT= new Float32Array(N_TOTAL);    // when this node "dies" (osteoporosis order)
-
-for (let ix=0; ix<GX; ix++) {
-  for (let iy=0; iy<GY; iy++) {
-    for (let iz=0; iz<GZ; iz++) {
-      const i = ix*GY*GZ + iy*GZ + iz;
-      const nx = (ix/(GX-1))*2-1;
-      const ny = (iy/(GY-1))*2-1;
-      const nz = (iz/(GZ-1))*2-1;
-      // Femoral condyle cross-section (bi-lobed ellipsoid, wider at equator)
-      const r = (nx*nx)/(0.88*0.88) + ((ny+0.1)*(ny+0.1))/(1.05*1.05) + (nz*nz)/(0.80*0.80);
-      if (r > 1.0) { nValid[i]=0; continue; }
-      nValid[i] = 1;
-      const sc = 1.9;
-      nPos[i*3+0] = nx*sc + (Math.random()-.5)*0.14;
-      nPos[i*3+1] = ny*sc + (Math.random()-.5)*0.11;
-      nPos[i*3+2] = nz*sc + (Math.random()-.5)*0.14;
-      // Surface = cortical (cerulean), interior = cancellous (mid)
-      const depth = Math.sqrt(r);
-      const c = lerp3(C_MID, C_CERULEAN, Math.pow(depth, 0.5));
-      nBasec.push(c[0], c[1], c[2]);
-      // Death order: interior first (cancellous), cortex last
-      nDeathT[i] = (1.0 - Math.pow(depth, 0.4)) * 0.65 + Math.random() * 0.35;
-    }
+const edges=[];
+for(let ix=0;ix<GX;ix++) for(let iy=0;iy<GY;iy++) for(let iz=0;iz<GZ;iz++){
+  const a=ix*GY*GZ+iy*GZ+iz; if(!nValid[a])continue;
+  for(const [dx,dy,dz] of [[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1]]){
+    const jx=ix+dx,jy=iy+dy,jz=iz+dz;
+    if(jx>=GX||jy>=GY||jz>=GZ)continue;
+    const b=jx*GY*GZ+jy*GZ+jz; if(!nValid[b])continue;
+    edges.push(a,b);
   }
 }
+const NE=edges.length>>1;
 
-// Build edge list (adjacent + face diagonals)
-const edges = [];
-for (let ix=0; ix<GX; ix++) for (let iy=0; iy<GY; iy++) for (let iz=0; iz<GZ; iz++) {
-  const a = ix*GY*GZ + iy*GZ + iz;
-  if (!nValid[a]) continue;
-  for (const [dx,dy,dz] of [[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1]]) {
-    const jx=ix+dx, jy=iy+dy, jz=iz+dz;
-    if (jx>=GX||jy>=GY||jz>=GZ) continue;
-    const b = jx*GY*GZ + jy*GZ + jz;
-    if (!nValid[b]) continue;
-    edges.push(a, b);
-  }
-}
-const N_EDGES = edges.length >> 1;
+// ── GPU buffers ───────────────────────────────────────────
+const npA=new Float32Array(NT*3), ncA=new Float32Array(NT*3), naA=new Float32Array(NT);
+const epA=new Float32Array(NE*2*3), ecA=new Float32Array(NE*2*3), eaA=new Float32Array(NE*2);
 
-// ── GPU buffer sets ─────────────────────────────────────────
-const nodePosArr   = new Float32Array(N_TOTAL*3);
-const nodeColArr   = new Float32Array(N_TOTAL*3);
-const nodeAlvArr   = new Float32Array(N_TOTAL);
-const edgePosArr   = new Float32Array(N_EDGES*2*3);
-const edgeColArr   = new Float32Array(N_EDGES*2*3);
-const edgeAlvArr   = new Float32Array(N_EDGES*2);
+function mkBuf(d){ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,d,gl.DYNAMIC_DRAW); return b; }
+const bNP=mkBuf(npA),bNC=mkBuf(ncA),bNA=mkBuf(naA);
+const bEP=mkBuf(epA),bEC=mkBuf(ecA),bEA=mkBuf(eaA);
 
-function mkBuf(data) {
-  const b = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, b);
-  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
-  return b;
-}
+function up(b,d){ gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,d,gl.DYNAMIC_DRAW); }
+function ba(prog,name,buf,sz){ const loc=gl.getAttribLocation(prog,name); if(loc<0)return; gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,sz,gl.FLOAT,false,0,0); }
 
-const bufNP = mkBuf(nodePosArr), bufNC = mkBuf(nodeColArr), bufNA = mkBuf(nodeAlvArr);
-const bufEP = mkBuf(edgePosArr), bufEC = mkBuf(edgeColArr), bufEA = mkBuf(edgeAlvArr);
+// ── Sim state ─────────────────────────────────────────────
+let dT=0, tT=0;
 
-function uploadBuf(buf, data) {
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
-}
+// ── Camera ────────────────────────────────────────────────
+let rX=-0.22, rY=0.5, zoom=4.8;
+let drag=false, lmx=0,lmy=0, autoSpin=true;
+let ltx=0,lty=0;
 
-function bindAttr(prog, name, buf, sz) {
-  const loc = gl.getAttribLocation(prog, name);
-  if (loc < 0) return;
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.enableVertexAttribArray(loc);
-  gl.vertexAttribPointer(loc, sz, gl.FLOAT, false, 0, 0);
-}
+canvas.addEventListener('mousedown',  e=>{ drag=true; lmx=e.clientX; lmy=e.clientY; autoSpin=false;
+  document.getElementById('drag-hint').classList.add('gone'); });
+window.addEventListener('mouseup',    ()=>{ drag=false; });
+window.addEventListener('mousemove',  e=>{ if(!drag)return; rY+=(e.clientX-lmx)*.009; rX+=(e.clientY-lmy)*.007;
+  rX=Math.max(-1.1,Math.min(1.1,rX)); lmx=e.clientX; lmy=e.clientY; });
+canvas.addEventListener('wheel',      e=>{ zoom+=e.deltaY*.006; zoom=Math.max(3,Math.min(9,zoom)); e.preventDefault(); },{passive:false});
+canvas.addEventListener('touchstart', e=>{ ltx=e.touches[0].clientX; lty=e.touches[0].clientY; autoSpin=false; });
+canvas.addEventListener('touchmove',  e=>{ rY+=(e.touches[0].clientX-ltx)*.011; rX+=(e.touches[0].clientY-lty)*.009;
+  rX=Math.max(-1.1,Math.min(1.1,rX)); ltx=e.touches[0].clientX; lty=e.touches[0].clientY; e.preventDefault(); },{passive:false});
 
-// ── Simulation state ─────────────────────────────────────────
-let degradeT = 0, targetT = 0;
-
-// ── Camera ───────────────────────────────────────────────────
-let camRotX = -0.25, camRotY = 0.5, camZoom = 5.2;
-let isDrag = false, lastMX = 0, lastMY = 0;
-let autoSpin = true;
-
-const hero = document.getElementById('sim-hero');
-hero.addEventListener('mousedown',  e => { isDrag=true; lastMX=e.clientX; lastMY=e.clientY; autoSpin=false;
-  document.getElementById('sim-drag-hint').classList.add('hidden'); });
-window.addEventListener('mouseup',  () => { isDrag=false; });
-window.addEventListener('mousemove', e => {
-  if (!isDrag) return;
-  camRotY += (e.clientX-lastMX)*0.009;
-  camRotX += (e.clientY-lastMY)*0.007;
-  camRotX = Math.max(-1.1, Math.min(1.1, camRotX));
-  lastMX=e.clientX; lastMY=e.clientY;
-});
-hero.addEventListener('wheel', e => {
-  camZoom += e.deltaY * 0.006;
-  camZoom = Math.max(3, Math.min(9, camZoom));
-  e.preventDefault();
-}, { passive: false });
-
-let lastTX=0, lastTY=0;
-hero.addEventListener('touchstart', e => { lastTX=e.touches[0].clientX; lastTY=e.touches[0].clientY; autoSpin=false; });
-hero.addEventListener('touchmove', e => {
-  camRotY += (e.touches[0].clientX-lastTX)*0.011;
-  camRotX += (e.touches[0].clientY-lastTY)*0.009;
-  camRotX = Math.max(-1.1, Math.min(1.1, camRotX));
-  lastTX=e.touches[0].clientX; lastTY=e.touches[0].clientY; e.preventDefault();
-}, { passive: false });
-
-// ── Mode API (called by buttons) ──────────────────────────────
+// ── Mode API (called by buttons + prediction result) ──────
 window.simSetMode = function(mode) {
-  if (mode === 'healthy')      targetT = 0;
-  if (mode === 'degrading')    targetT = 0.48;
-  if (mode === 'osteoporotic') targetT = 1.0;
-  document.querySelectorAll('.sim-btn').forEach(b => { b.className = 'sim-btn'; });
-  const cls = mode === 'osteoporotic' ? 'active-rose' : 'active-cerulean';
-  const id  = mode === 'healthy' ? 'sbtn-healthy' : (mode === 'degrading' ? 'sbtn-degrading' : 'sbtn-osteo');
+  tT = mode==='healthy'?0 : mode==='degrading'?0.48 : 1.0;
+  document.querySelectorAll('.sim-btn').forEach(b=>{ b.className='sim-btn'; });
+  const cls = mode==='osteoporotic'?'active-r':'active-c';
+  const id  = mode==='healthy'?'sbtn-healthy':mode==='degrading'?'sbtn-degrading':'sbtn-osteo';
   const el  = document.getElementById(id);
-  if (el) el.classList.add(cls);
+  if(el) el.classList.add(cls);
 };
 
-// ── HUD elements ──────────────────────────────────────────────
-const ssBmd    = document.getElementById('ss-bmd');
-const ssTscore = document.getElementById('ss-tscore');
-const ssPoros  = document.getElementById('ss-poros');
-const simBmdBar= document.getElementById('sim-bmd-bar');
+// ── HUD refs ──────────────────────────────────────────────
+const spBmd   = document.getElementById('sp-bmd');
+const spTs    = document.getElementById('sp-tscore');
+const spPoros = document.getElementById('sp-poros');
+const spNodes = document.getElementById('sp-nodes');
+const bmdBar  = document.getElementById('bmd-bar');
 
-function updateSimHUD(t) {
-  const bmd    = (1.24 - t * 0.76).toFixed(2);
-  const tscore = (0.8 - t * 3.3).toFixed(1);
-  const poros  = Math.round(12 + t * 52);
-  if (ssBmd)    { ssBmd.textContent = bmd;    ssBmd.className = 'ss-val ' + (t<0.4?'cerulean':'rose'); }
-  if (ssTscore) { ssTscore.textContent = (parseFloat(tscore)>=0?'+':'')+tscore; }
-  if (ssPoros)  ssPoros.textContent = poros + '%';
-  if (simBmdBar) simBmdBar.style.width = Math.max(5, 85 - t*78) + '%';
+function updateHUD(t) {
+  const bmd   = (1.24-t*.76).toFixed(2);
+  const ts    = (0.8-t*3.3).toFixed(1);
+  const poros = Math.round(12+t*52);
+  const nodes = Math.round(NT*(1-t*.72));
+  if(spBmd) { spBmd.textContent=bmd; spBmd.className='spc-val '+(t<0.4?'c':'r'); }
+  if(spTs)    spTs.textContent=(parseFloat(ts)>=0?'+':'')+ts;
+  if(spPoros) spPoros.textContent=poros+'%';
+  if(spNodes) spNodes.textContent=nodes;
+  if(bmdBar)  bmdBar.style.width=Math.max(5,85-t*78)+'%';
 }
 
-// ── Render loop ───────────────────────────────────────────────
-let prevTs = 0;
-
+// ── Render loop ───────────────────────────────────────────
+let prev=0, started=false;
 function frame(ts) {
-  const dt = Math.min((ts - prevTs)/1000, 0.05);
-  prevTs = ts;
+  // Ensure canvas is sized on first draw
+  if (!started) { resize(); started = true; }
+  const dt=Math.min((ts-prev)/1000,0.05); prev=ts;
+  dT += (tT-dT)*Math.min(1,dt*1.4);
+  if(autoSpin) rY+=dt*0.14;
 
-  degradeT += (targetT - degradeT) * Math.min(1, dt * 1.4);
-  if (autoSpin) camRotY += dt * 0.16;
-
-  // Fill node arrays
-  for (let i=0; i<N_TOTAL; i++) {
-    if (!nValid[i]) { nodeAlvArr[i]=0; continue; }
-    const death = nDeathT[i];
-    const alive = Math.max(0, Math.min(1, (death - degradeT)/0.1 + 1));
-    const tCol  = Math.max(0, Math.min(1, (degradeT - death + 0.12)/0.3));
-    const bc    = [nBasec[i*3], nBasec[i*3+1], nBasec[i*3+2]];
-    const col   = tCol < 0.5 ? lerp3(bc, C_MID, tCol*2) : lerp3(C_MID, C_ROSE, (tCol-.5)*2);
-    nodePosArr[i*3]   = nPos[i*3];
-    nodePosArr[i*3+1] = nPos[i*3+1];
-    nodePosArr[i*3+2] = nPos[i*3+2];
-    nodeColArr[i*3]   = col[0]; nodeColArr[i*3+1]=col[1]; nodeColArr[i*3+2]=col[2];
-    nodeAlvArr[i]     = alive;
+  // Build node data
+  for(let i=0;i<NT;i++){
+    if(!nValid[i]){naA[i]=0;continue;}
+    const d=nDeath[i];
+    const alive=Math.max(0,Math.min(1,(d-dT)/0.1+1));
+    const tc=Math.max(0,Math.min(1,(dT-d+0.12)/0.3));
+    const bc=[nBase[i*3],nBase[i*3+1],nBase[i*3+2]];
+    const col=tc<0.5?lerp3(bc,CM,tc*2):lerp3(CM,CR,(tc-.5)*2);
+    npA[i*3]=nPos[i*3]; npA[i*3+1]=nPos[i*3+1]; npA[i*3+2]=nPos[i*3+2];
+    ncA[i*3]=col[0]; ncA[i*3+1]=col[1]; ncA[i*3+2]=col[2];
+    naA[i]=alive;
   }
 
-  // Fill edge arrays
-  for (let e=0; e<N_EDGES; e++) {
-    const ia=edges[e*2], ib=edges[e*2+1];
-    for (let v=0; v<2; v++) {
-      const idx=v?ib:ia, bi=(e*2+v);
-      edgePosArr[bi*3]   = nodePosArr[idx*3];
-      edgePosArr[bi*3+1] = nodePosArr[idx*3+1];
-      edgePosArr[bi*3+2] = nodePosArr[idx*3+2];
-      edgeColArr[bi*3]   = nodeColArr[idx*3];
-      edgeColArr[bi*3+1] = nodeColArr[idx*3+1];
-      edgeColArr[bi*3+2] = nodeColArr[idx*3+2];
-      edgeAlvArr[bi]     = nodeAlvArr[idx];
+  // Build edge data
+  for(let e=0;e<NE;e++){
+    const ia=edges[e*2],ib=edges[e*2+1];
+    for(let v=0;v<2;v++){
+      const idx=v?ib:ia, bi=e*2+v;
+      epA[bi*3]=npA[idx*3]; epA[bi*3+1]=npA[idx*3+1]; epA[bi*3+2]=npA[idx*3+2];
+      ecA[bi*3]=ncA[idx*3]; ecA[bi*3+1]=ncA[idx*3+1]; ecA[bi*3+2]=ncA[idx*3+2];
+      eaA[bi]=naA[idx];
     }
   }
 
-  uploadBuf(bufNP, nodePosArr); uploadBuf(bufNC, nodeColArr); uploadBuf(bufNA, nodeAlvArr);
-  uploadBuf(bufEP, edgePosArr); uploadBuf(bufEC, edgeColArr); uploadBuf(bufEA, edgeAlvArr);
+  up(bNP,npA);up(bNC,ncA);up(bNA,naA);
+  up(bEP,epA);up(bEC,ecA);up(bEA,eaA);
 
-  // MVP
-  const asp  = canvas.width / canvas.height;
-  const mvp  = mul4(mul4(perspective(0.60, asp, 0.1, 100), transl(-camZoom)), mul4(rotX(camRotX), rotY(camRotY)));
+  const asp=canvas.width/canvas.height;
+  const mvp=mul4(mul4(persp(0.60,asp,0.1,100),transl(-zoom)),mul4(rotX(rX),rotY(rY)));
 
-  // Clear — jet black
-  gl.clearColor(0.039, 0.039, 0.039, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.clearColor(0.039,0.039,0.039,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);  // additive → glow effect
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
 
-  // Draw edges
-  gl.useProgram(progEdge);
-  gl.uniformMatrix4fv(gl.getUniformLocation(progEdge,'u_mvp'), false, mvp);
-  bindAttr(progEdge,'a_pos',bufEP,3);
-  bindAttr(progEdge,'a_col',bufEC,3);
-  bindAttr(progEdge,'a_alive',bufEA,1);
-  gl.drawArrays(gl.LINES, 0, N_EDGES*2);
+  // Edges
+  gl.useProgram(progE);
+  gl.uniformMatrix4fv(gl.getUniformLocation(progE,'u_mvp'),false,mvp);
+  ba(progE,'a_pos',bEP,3);ba(progE,'a_col',bEC,3);ba(progE,'a_alive',bEA,1);
+  gl.drawArrays(gl.LINES,0,NE*2);
 
-  // Draw nodes
-  gl.useProgram(progNode);
-  gl.uniformMatrix4fv(gl.getUniformLocation(progNode,'u_mvp'), false, mvp);
-  gl.uniform1f(gl.getUniformLocation(progNode,'u_time'), ts*0.001);
-  bindAttr(progNode,'a_pos',bufNP,3);
-  bindAttr(progNode,'a_col',bufNC,3);
-  bindAttr(progNode,'a_alive',bufNA,1);
-  gl.drawArrays(gl.POINTS, 0, N_TOTAL);
+  // Nodes
+  gl.useProgram(progN);
+  gl.uniformMatrix4fv(gl.getUniformLocation(progN,'u_mvp'),false,mvp);
+  ba(progN,'a_pos',bNP,3);ba(progN,'a_col',bNC,3);ba(progN,'a_alive',bNA,1);
+  gl.drawArrays(gl.POINTS,0,NT);
 
-  updateSimHUD(degradeT);
+  updateHUD(dT);
   requestAnimationFrame(frame);
 }
-
-requestAnimationFrame(frame);
+try { requestAnimationFrame(frame); } catch(err) { console.error("3D sim error:", err); }
 })();
+{% endraw %}
 </script>
+
 </body>
 </html>
