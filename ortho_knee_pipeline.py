@@ -232,76 +232,89 @@ print(f"  Test Set:  {len(df_test)} images ({len(test_pts)} unique patients) | N
 NORMALIZE_MEAN = [0.485, 0.456, 0.406]
 NORMALIZE_STD  = [0.229, 0.224, 0.225]
 
-class AutoOrientKneeRadiograph:
+class RadiographPreprocessor:
     """
-    Clinical Alignment Standardization:
-    Knee radiographs must be evaluated in vertical AP orientation (Femur superior, Tibia inferior).
-    If an image is digitized horizontally (Width > Height), it rotates it 90 degrees to ensure
-    anatomical alignment across all patient scans.
+    Unified Canonical Preprocessing Pipeline shared across:
+    - Training & Evaluation DataLoaders
+    - Test-Time Augmentation (TTA)
+    - Grad-CAM++ Visualization (Pixel-perfect registration)
+    - ONNX Export & Parity Verification on REAL images
+    - Production Web Inference (web_inference_onnx.py & app.py)
     """
-    def __call__(self, img):
-        if img.size[0] > img.size[1]:
-            return img.transpose(Image.Transpose.ROTATE_90)
-        return img
+    def __init__(self, target_size=(224, 224), mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+        self.target_size = target_size
+        self.mean = np.array(mean, dtype=np.float32)
+        self.std = np.array(std, dtype=np.float32)
 
-class CropKneeJointROI:
-    """
-    Automated Knee Articular Region-of-Interest (ROI) Extraction.
-    Removes black border padding, scan labels, and peripheral collimation borders
-    to prevent shortcut learning (Clever Hans effect) where a CNN learns
-    spurious border/padding differences between classes instead of actual
-    trabecular demineralization or joint space loss.
-    """
-    def __init__(self, padding_thresh=15, min_ratio=0.10):
-        self.padding_thresh = padding_thresh
-        self.min_ratio = min_ratio
-        
-    def __call__(self, img):
+    def standardize_and_crop(self, pil_img):
+        """
+        Step 1: Clinical AP Orientation (Height >= Width)
+        Step 2: Auto-crop peripheral black border padding
+        Step 3: Aspect-ratio preserving square letterboxing (prevents joint distortion)
+        """
+        img = pil_img.convert('RGB')
+        # 1. Standardize to vertical AP orientation
+        if img.size[0] > img.size[1]:
+            img = img.transpose(Image.Transpose.ROTATE_90)
+
+        # 2. Trim black padding borders
         gray = np.array(img.convert('L'))
-        non_pad = (gray > self.padding_thresh)
-        if non_pad.sum() < (gray.size * self.min_ratio):
-            return img
-            
-        y_proj = np.any(non_pad, axis=1)
-        x_proj = np.any(non_pad, axis=0)
-        y_indices = np.where(y_proj)[0]
-        x_indices = np.where(x_proj)[0]
-        if len(y_indices) == 0 or len(x_indices) == 0:
-            return img
-            
-        y_min, y_max = y_indices[0], y_indices[-1]
-        x_min, x_max = x_indices[0], x_indices[-1]
-        
-        # Add 2% safety margin
-        h, w = gray.shape
-        y_min = max(0, y_min - int(0.02 * h))
-        y_max = min(h, y_max + int(0.02 * h))
-        x_min = max(0, x_min - int(0.02 * w))
-        x_max = min(w, x_max + int(0.02 * w))
-        
-        if (x_max - x_min) < 30 or (y_max - y_min) < 30:
-            return img
-            
-        return img.crop((x_min, y_min, x_max, y_max))
+        non_pad = (gray > 15)
+        if non_pad.sum() >= (gray.size * 0.10):
+            y_proj = np.any(non_pad, axis=1)
+            x_proj = np.any(non_pad, axis=0)
+            y_idxs = np.where(y_proj)[0]
+            x_idxs = np.where(x_proj)[0]
+            if len(y_idxs) > 0 and len(x_idxs) > 0:
+                h, w = gray.shape
+                y_min = max(0, y_idxs[0] - int(0.02 * h))
+                y_max = min(h, y_idxs[-1] + int(0.02 * h))
+                x_min = max(0, x_idxs[0] - int(0.02 * w))
+                x_max = min(w, x_idxs[-1] + int(0.02 * w))
+                if (x_max - x_min) >= 30 and (y_max - y_min) >= 30:
+                    img = img.crop((x_min, y_min, x_max, y_max))
+
+        # 3. Square Letterbox (Pad shorter dimension to preserve anatomical proportions)
+        w, h = img.size
+        max_dim = max(w, h)
+        square_img = Image.new('RGB', (max_dim, max_dim), color=(0, 0, 0))
+        offset_x = (max_dim - w) // 2
+        offset_y = (max_dim - h) // 2
+        square_img.paste(img, (offset_x, offset_y))
+
+        # 4. Resize to target dimension
+        return square_img.resize(self.target_size, Image.Resampling.BILINEAR)
+
+    def to_tensor(self, pil_img):
+        """Converts standardized PIL image to normalized PyTorch tensor [3, H, W]"""
+        std_img = self.standardize_and_crop(pil_img)
+        arr = np.array(std_img, dtype=np.float32) / 255.0
+        arr = (arr - self.mean) / self.std
+        tensor = torch.from_numpy(arr).permute(2, 0, 1).float()
+        return tensor
+
+    def to_numpy_nchw(self, pil_img):
+        """Converts standardized PIL image to normalized NumPy NCHW array [1, 3, H, W] for ONNX"""
+        std_img = self.standardize_and_crop(pil_img)
+        arr = np.array(std_img, dtype=np.float32) / 255.0
+        arr = (arr - self.mean) / self.std
+        arr = np.transpose(arr, (2, 0, 1))
+        return np.expand_dims(arr, axis=0).astype(np.float32)
+
+preprocessor = RadiographPreprocessor(target_size=IMAGE_SIZE, mean=NORMALIZE_MEAN, std=NORMALIZE_STD)
 
 train_transforms = transforms.Compose([
-    AutoOrientKneeRadiograph(),
-    CropKneeJointROI(),
-    transforms.Resize(IMAGE_SIZE),
+    transforms.Lambda(lambda img: preprocessor.standardize_and_crop(img)),
     transforms.RandomAffine(degrees=10, translate=(0.04, 0.04), scale=(0.96, 1.04)),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.ColorJitter(brightness=0.20, contrast=0.20),
     transforms.ToTensor(),
     transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD),
-    transforms.RandomErasing(p=0.4, scale=(0.02, 0.15), value='random') # Destroys corner/marker shortcuts
+    transforms.RandomErasing(p=0.4, scale=(0.02, 0.15), value='random')
 ])
 
 eval_transforms = transforms.Compose([
-    AutoOrientKneeRadiograph(),
-    CropKneeJointROI(),
-    transforms.Resize(IMAGE_SIZE),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)
+    transforms.Lambda(lambda img: preprocessor.to_tensor(img))
 ])
 
 class KneeRadiographDataset(Dataset):
@@ -388,6 +401,9 @@ class KneeOrthoClassifier(nn.Module):
         
     def forward(self, x):
         feat = self.features(x)
+        # Apply torchvision DenseNet's final ReLU after norm5 before pooling
+        if self.backbone_name.startswith('densenet'):
+            feat = nn.functional.relu(feat, inplace=True)
         pooled = self.pool(feat)
         logits = self.classifier(pooled)
         return logits.squeeze(-1)
@@ -409,21 +425,25 @@ model = KneeOrthoClassifier(backbone_name=SELECTED_BACKBONE, pretrained=True, dr
 #           denseblock4 is where trabecular bone density and joint-space narrowing are encoded.
 #
 # Result: Trainable parameters drop from 7.2M -> ~1.6M (correct ratio for 764 patients).
+# Identify and freeze feature blocks
+frozen_modules = []
 if SELECTED_BACKBONE == 'densenet121':
     FREEZE_BEFORE = {'conv0', 'norm0', 'relu0', 'pool0',
                      'denseblock1', 'transition1',
                      'denseblock2', 'transition2',
                      'denseblock3', 'transition3'}
-    for name, param in model.features.named_parameters():
-        block_name = name.split('.')[0]
-        if block_name in FREEZE_BEFORE:
-            param.requires_grad = False
+    for child_name, child in model.features.named_children():
+        if child_name in FREEZE_BEFORE:
+            frozen_modules.append(child)
+            for p in child.parameters():
+                p.requires_grad = False
 else:
-    # EfficientNet: freeze first 5 out of 9 MBConv stages
-    for i, (name, param) in enumerate(model.features.named_parameters()):
-        stage_idx = int(name.split('.')[0]) if name.split('.')[0].isdigit() else -1
-        if stage_idx < 5:
-            param.requires_grad = False
+    for i, (name, child) in enumerate(model.features.named_children()):
+        if i < 5:
+            frozen_modules.append(child)
+            for p in child.parameters():
+                p.requires_grad = False
+model.frozen_modules = frozen_modules
 
 total_params = sum(p.numel() for p in model.parameters())
 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -528,6 +548,9 @@ start_time = time.time()
 for epoch in range(1, NUM_EPOCHS + 1):
     # Training Phase with Mixup
     model.train()
+    # Lock running_mean and running_var of frozen BatchNorm layers
+    for m in getattr(model, 'frozen_modules', []):
+        m.eval()
     running_loss = 0.0
     total_train_samples = 0
 
@@ -573,7 +596,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
             val_loss += loss.item() * images.size(0)
             total_val_samples += images.size(0)
             
-            probs = torch.sigmoid(logits).cpu().numpy()
+            probs = torch.sigmoid(logits.float()).cpu().numpy()
             val_preds.extend(probs)
             val_targets.extend(targets.cpu().numpy())
             
@@ -665,7 +688,7 @@ with torch.no_grad():
         images = images.to(device, non_blocking=True)
         with torch.amp.autocast(autocast_device):
             logits = model(images)
-        probs = torch.sigmoid(logits).cpu().numpy()
+        probs = torch.sigmoid(logits.float()).cpu().numpy()
         test_probs.extend(probs)
         test_targets.extend(targets.numpy())
 
@@ -724,7 +747,7 @@ for view_idx, tta_tf in enumerate(tta_transforms):
             imgs = imgs.to(device, non_blocking=True)
             with torch.amp.autocast(autocast_device):
                 logits = model(imgs)
-            view_probs.extend(torch.sigmoid(logits).cpu().numpy())
+            view_probs.extend(torch.sigmoid(logits.float()).cpu().numpy())
     for s_idx, p in enumerate(view_probs):
         tta_probs_all[s_idx].append(p)
 
@@ -749,7 +772,7 @@ with torch.no_grad():
         images = images.to(device, non_blocking=True)
         with torch.amp.autocast(autocast_device):
             logits = model(images)
-        val_probs.extend(torch.sigmoid(logits).cpu().numpy())
+        val_probs.extend(torch.sigmoid(logits.float()).cpu().numpy())
         val_targets.extend(targets.numpy())
 
 val_probs = np.array(val_probs)
@@ -758,7 +781,10 @@ val_targets = np.array(val_targets)
 # Tune optimal threshold strictly on the VALIDATION SET (prevents test data leakage)
 fpr_val, tpr_val, val_thresholds = roc_curve(val_targets, val_probs)
 youden_val = tpr_val - fpr_val
-val_best_idx = np.argmax(youden_val)
+max_youden = np.max(youden_val)
+# Find all tied optimal thresholds to avoid picking extreme edge
+tied_indices = np.where(np.isclose(youden_val, max_youden, atol=1e-5))[0]
+val_best_idx = tied_indices[len(tied_indices) // 2]
 optimal_threshold = float(val_thresholds[val_best_idx])
 print(f"\n[Validation Tuning] Validation-derived Youden's J Threshold: {optimal_threshold:.4f}")
 print("  (Zero-leakage: Test set is NEVER used to pick the decision threshold)")
@@ -947,7 +973,7 @@ plt.show()
 #    (α_ij = grad²_ij / (2·grad²_ij + A·grad³)) to capture BOTH foci.
 #
 # 2. LOW-CONTRAST X-RAYS: Plain radiographs have narrow grayscale contrast
-#    (Hounsfield unit range 400-700 for bone). Vanilla gradients average
+#    (radiographic optical bone density gradients). Vanilla gradients average
 #    spatially, washing out bone texture boundaries. Grad-CAM++ weights
 #    pixels by their 2nd-order gradient -- exactly where bone density
 #    CHANGES (cortical-trabecular interface, joint margin).
@@ -1022,14 +1048,24 @@ class GradCAMPlusPlus:
         # Grad-CAM++ alpha computation (Chattopadhay et al. Eq.19)
         # α_ij = grad² / (2·grad² + A·Σgrad³)
         # -------------------------------------------------------
-        grads_sq  = grads ** 2                                          # 2nd order approx
-        grads_cub = grads ** 3                                          # 3rd order approx
-        denom = 2.0 * grads_sq + (acts * grads_cub).sum(dim=[2, 3], keepdim=True)
-        denom = torch.clamp(denom, min=1e-8)                            # numerical safety
-        alphas = grads_sq / denom                                       # pixel importance [1,C,H,W]
+        # Chattopadhay et al. (WACV 2018) Eq. 19:
+        # α_ij = (∂²Y/∂A_ij²) / [ 2·(∂²Y/∂A_ij²) + Σ_ab A_ab · (∂³Y/∂A_ab³) ]
+        grads_sq  = grads ** 2
+        grads_cub = grads ** 3
+        sum_acts_grads_cub = torch.sum(acts * grads_cub, dim=[2, 3], keepdim=True)
+        denom = 2.0 * grads_sq + sum_acts_grads_cub
 
-        # Channel weights: spatially weighted sum of POSITIVE gradients only
-        weights = (alphas * nn.functional.relu(grads)).sum(dim=[2, 3], keepdim=True)  # [1,C,1,1]
+        # Safe division: zero-gradient pixels have alpha = 0; no negative clamp distortion
+        eps = 1e-12
+        safe_denom = torch.where(denom >= 0, torch.clamp(denom, min=eps), torch.clamp(denom, max=-eps))
+        alphas = torch.where(grads != 0.0, grads_sq / safe_denom, torch.zeros_like(grads_sq))
+
+        # Normalize alphas per feature map
+        alphas_sum = alphas.abs().sum(dim=[2, 3], keepdim=True)
+        alphas = torch.where(alphas_sum > 0, alphas / alphas_sum, torch.zeros_like(alphas))
+
+        # Channel weights: spatially weighted sum of positive gradients
+        weights = torch.sum(alphas * nn.functional.relu(grads), dim=[2, 3], keepdim=True)
 
         cam = torch.sum(weights * acts, dim=1, keepdim=True)            # [1,1,H,W]
         cam = nn.functional.relu(cam)
@@ -1093,12 +1129,13 @@ def analyze_gradcam_localization(heatmap):
     else:
         vert = "Proximal Tibial Plateau & Trabeculae"
         
-    if cx < 0.42:
-        horiz = "Medial"
-    elif cx > 0.58:
-        horiz = "Lateral"
+    # Without indexed laterality (Left vs Right leg), coordinates indicate image hemijoint
+    if cx < 0.45:
+        horiz = "Left Hemijoint"
+    elif cx > 0.55:
+        horiz = "Right Hemijoint"
     else:
-        horiz = "Central"
+        horiz = "Central Bicondylar"
         
     desc = f"{horiz} {vert}"
     if shortcut_warning:
@@ -1132,13 +1169,11 @@ print("Columns: [Grayscale X-Ray] | [Ground Truth] | [Pathology Risk Gauge] | [G
 print("="*80)
 
 for i, row in demo_samples.iterrows():
-    # Load image with AutoOrient (AP vertical position)
+    # Preprocess once with canonical preprocessor (guarantees pixel-perfect heatmap alignment)
     raw_pil = Image.open(row['filepath']).convert('RGB')
-    if raw_pil.size[0] > raw_pil.size[1]:
-        raw_pil = raw_pil.transpose(Image.Transpose.ROTATE_90)
-    raw_pil = raw_pil.resize(IMAGE_SIZE)
-
-    img_tensor = eval_transforms(raw_pil).unsqueeze(0).to(device)
+    preprocessed_pil = preprocessor.standardize_and_crop(raw_pil)
+    img_tensor = preprocessor.to_tensor(preprocessed_pil).unsqueeze(0).to(device)
+    
     heatmap, prob, explained_class = grad_cam_pp.generate_heatmap(img_tensor, target_class=int(row['label']))
 
     is_pred_osteo = (prob >= optimal_threshold)
@@ -1146,10 +1181,9 @@ for i, row in demo_samples.iterrows():
     true_label   = row['category'].capitalize()
     is_correct   = (pred_label == true_label)
 
-    # Convert to grayscale for authentic clinical radiograph display
-    # Radiologists read X-rays in grayscale — NOT RGB pseudocolor
-    raw_gray = np.array(raw_pil.convert('L')) / 255.0        # [H,W] grayscale
-    raw_rgb  = np.stack([raw_gray]*3, axis=-1)                # [H,W,3] for imshow
+    # Display image matches model input exactly (no double-crop distortion)
+    raw_gray = np.array(preprocessed_pil.convert('L')) / 255.0
+    raw_rgb  = np.stack([raw_gray]*3, axis=-1)
 
     # Grad-CAM++ transparent overlay using 'hot' colormap
     # 'hot': black→dark-red→orange→yellow→white maps activation 0→1
@@ -1290,27 +1324,21 @@ def predict_knee_radiograph(image_path, model, threshold=0.5, device=device, use
 
     if use_tta:
         # Run 5-view TTA for robust probability (single-image version)
-        tta_single_views = [
-            eval_transforms,
-            transforms.Compose([AutoOrientKneeRadiograph(), transforms.Resize(IMAGE_SIZE),
-                                 transforms.RandomHorizontalFlip(p=1.0),
-                                 transforms.ToTensor(), transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)]),
-            transforms.Compose([AutoOrientKneeRadiograph(), transforms.Resize(IMAGE_SIZE),
-                                 transforms.RandomAffine(degrees=(5, 5)),
-                                 transforms.ToTensor(), transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)]),
-            transforms.Compose([AutoOrientKneeRadiograph(), transforms.Resize(IMAGE_SIZE),
-                                 transforms.RandomAffine(degrees=(-5, -5)),
-                                 transforms.ToTensor(), transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)]),
-            transforms.Compose([AutoOrientKneeRadiograph(), transforms.Resize(IMAGE_SIZE),
-                                 transforms.ColorJitter(brightness=0.15),
-                                 transforms.ToTensor(), transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)]),
-        ]
         raw_img = Image.open(image_path).convert('RGB')
+        base_tensor = preprocessor.to_tensor(raw_img)
+        # Deterministic 5-view TTA sharing exact canonical preprocessing
+        tta_views_tensors = [
+            base_tensor,                                                        # View 1: Canonical Preprocessed
+            transforms.functional.hflip(base_tensor),                           # View 2: Deterministic H-flip
+            transforms.functional.rotate(base_tensor, angle=5.0),               # View 3: Deterministic +5° rot
+            transforms.functional.rotate(base_tensor, angle=-5.0),              # View 4: Deterministic -5° rot
+            transforms.functional.adjust_brightness(base_tensor, 1.12),         # View 5: Deterministic +12% brightness
+        ]
         view_probs = []
         with torch.no_grad():
-            for tf in tta_single_views:
-                t = tf(raw_img).unsqueeze(0).to(device)
-                prob_i = torch.sigmoid(model(t)).item()
+            for t in tta_views_tensors:
+                t_batch = t.unsqueeze(0).to(device)
+                prob_i = torch.sigmoid(model(t_batch).float()).item()
                 view_probs.append(prob_i)
         prob     = float(np.mean(view_probs))
         tta_std  = float(np.std(view_probs))
@@ -1450,16 +1478,23 @@ print(f"[ONNX Export] Successfully exported. File size: {os.path.getsize(ONNX_FI
 try:
     import onnxruntime as ort
     session = ort.InferenceSession(ONNX_FILE_PATH, providers=['CPUExecutionProvider'])
-    ort_inputs = {session.get_inputs()[0].name: dummy_tensor.cpu().numpy()}
-    ort_outputs = session.run(None, ort_inputs)
     
+    # Verify parity on REAL preprocessed radiograph (not random noise)
+    demo_sample_img = Image.open(demo_samples.iloc[0]['filepath'])
+    real_onnx_input = preprocessor.to_numpy_nchw(demo_sample_img)
+    real_pt_input = preprocessor.to_tensor(demo_sample_img).unsqueeze(0).to(device)
+    
+    ort_outputs = session.run(None, {session.get_inputs()[0].name: real_onnx_input})
     with torch.no_grad():
-        pt_outputs = model(dummy_tensor).cpu().numpy()
+        pt_outputs = model(real_pt_input).cpu().numpy()
         
     abs_diff = np.max(np.abs(pt_outputs - ort_outputs[0]))
-    print(f"[Parity Verification] Max absolute difference: {abs_diff:.6e}")
+    pt_prob = 1.0 / (1.0 + np.exp(-float(pt_outputs[0])))
+    onnx_prob = 1.0 / (1.0 + np.exp(-float(ort_outputs[0][0])))
+    print(f"[Real-Image Parity Verification] PyTorch Prob: {pt_prob:.6f} | ONNX Prob: {onnx_prob:.6f}")
+    print(f"  Max Logit Difference on Real Patient Image: {abs_diff:.6e}")
     if abs_diff < 1e-4:
-        print("[Parity Verification: PASSED] ONNX Runtime matches PyTorch with sub-micro floating point precision!")
+        print("[Parity Verification: PASSED] End-to-end preprocessing + inference match perfectly!")
     else:
         print("[Parity Verification: WARNING] Numerical divergence observed.")
 except Exception as e:
@@ -1504,18 +1539,9 @@ def pure_onnx_predict(image_path, onnx_model_path, metadata_path):
         
     sess = ort.InferenceSession(onnx_model_path, providers=['CPUExecutionProvider'])
     
-    # 1. Preprocess image with AutoOrient (CRITICAL: must match train/eval pipeline)
-    # Without this, a horizontally-scanned radiograph arrives as a 90-degree rotated tensor,
-    # producing a completely different logit from the PyTorch pipeline. This was the
-    # root cause of PyTorch→prob=0.0778 (Normal) vs ONNX→prob=0.9165 (Osteo) contradiction.
+    # 1. Preprocess using canonical preprocessor logic (shared identically with PyTorch)
     img = Image.open(image_path).convert('RGB')
-    if img.size[0] > img.size[1]:  # AutoOrientKneeRadiograph
-        img = img.transpose(Image.Transpose.ROTATE_90)
-    img = img.resize(tuple(meta['input_size']), Image.Resampling.BILINEAR)
-    img_np = np.array(img, dtype=np.float32) / 255.0
-    img_norm = (img_np - np.array(meta['mean'], dtype=np.float32)) / np.array(meta['std'], dtype=np.float32)
-    img_chw = np.transpose(img_norm, (2, 0, 1))
-    input_tensor = np.expand_dims(img_chw, axis=0).astype(np.float32)
+    input_tensor = preprocessor.to_numpy_nchw(img)
     
     # 2. Run ONNX Session
     input_name = sess.get_inputs()[0].name
