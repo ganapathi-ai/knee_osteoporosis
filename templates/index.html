@@ -823,7 +823,17 @@ let applyMode3D = function(i){};
 
     try {
       const resp = await fetch('/predict', { method: 'POST', body: fd });
-      const data = await resp.json();
+      const respText = await resp.text();
+      let data;
+      try {
+        data = JSON.parse(respText);
+      } catch (jsonErr) {
+        throw new Error(
+          resp.status === 502 || resp.status === 504
+            ? `Server is waking up from idle state (${resp.status}). Please wait 10 seconds and try again.`
+            : `Server returned HTTP ${resp.status}: ${respText.slice(0, 100)}`
+        );
+      }
       setProgress(100, 'Diagnostic analysis complete.');
 
       if(!resp.ok || data.error || data.detail){

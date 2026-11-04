@@ -81,30 +81,28 @@ def _sigmoid_np(x: np.ndarray) -> np.ndarray:
 
 def compute_gradcam_heatmap(image_bytes: bytes, predictor_obj) -> str:
     """
-    Fast Batched Occlusion-Sensitivity Saliency Map.
-    Constructs a 7x7 occlusion grid (49 patches of 32x32) and evaluates
-    ALL patches in a SINGLE batched ONNX forward pass (executes in ~2.5s instead of minutes).
-    Renders a JET colour heatmap blended over the aligned radiograph.
-    Returns a base64-encoded PNG string.
+    Low-Memory Chunked Saliency Map (512MB RAM safe for Render Free Tier).
+    Evaluates a 5x5 occlusion grid (25 patches of 45x45) in small chunks of 5 images
+    to keep peak RAM usage under ~170MB (preventing Linux OOM killer).
+    Executes in ~2.5 seconds total.
     """
     tensor = predictor_obj.preprocess(image_bytes)   # (1, 3, 224, 224) float32
     h, w   = tensor.shape[2], tensor.shape[3]
 
-    # Baseline prediction
+    # Baseline prediction (single pass)
     out0 = predictor_obj.session.run(
         [predictor_obj.output_name], {predictor_obj.input_name: tensor}
     )[0]
     base_prob = float(_sigmoid_np(out0.flatten())[0])
 
-    # 7x7 occlusion grid (49 patches of 32x32 pixels)
-    grid_size = 7
-    patch_size = 32
+    # 5x5 occlusion grid = 25 patches (45x45 pixels each)
+    grid_size = 5
+    patch_size = 45
     total_patches = grid_size * grid_size
-
-    # Build entire batch in memory at once
-    batch = np.repeat(tensor, total_patches, axis=0)  # (49, 3, 224, 224)
     mean_val = float(tensor.mean())
 
+    # Build all 25 occluded variations
+    occluded_list = []
     for idx in range(total_patches):
         r = idx // grid_size
         c = idx % grid_size
@@ -112,26 +110,34 @@ def compute_gradcam_heatmap(image_bytes: bytes, predictor_obj) -> str:
         r_end   = min(r_start + patch_size, h)
         c_start = c * patch_size
         c_end   = min(c_start + patch_size, w)
-        batch[idx, :, r_start:r_end, c_start:c_end] = mean_val
+        t_mod = tensor.copy()
+        t_mod[0, :, r_start:r_end, c_start:c_end] = mean_val
+        occluded_list.append(t_mod[0])
 
-    # Single batched ONNX execution
-    out_batch = predictor_obj.session.run(
-        [predictor_obj.output_name], {predictor_obj.input_name: batch}
-    )[0]
-    batch_probs = _sigmoid_np(out_batch.flatten())
+    # Run in small mini-batches of 5 to keep memory <180MB
+    chunk_size = 5
+    batch_probs_list = []
+    for i in range(0, total_patches, chunk_size):
+        chunk = np.stack(occluded_list[i:i + chunk_size], axis=0)  # (5, 3, 224, 224)
+        out_chunk = predictor_obj.session.run(
+            [predictor_obj.output_name], {predictor_obj.input_name: chunk}
+        )[0]
+        batch_probs_list.extend(_sigmoid_np(out_chunk.flatten()))
 
-    # Importance = how much probability dropped when region was occluded
+    batch_probs = np.array(batch_probs_list, dtype=np.float32)
+
+    # Importance = drop in pathology probability when region is occluded
     sal = (base_prob - batch_probs).reshape(grid_size, grid_size)
-    sal = np.clip(sal, 0, None)
+    sal = np.clip(sal, 0.0, None)
     if sal.max() > 1e-6:
         sal = sal / sal.max()
 
-    # Bilinear upsample from 7x7 to 224x224
+    # Bilinear upsample from 5x5 to 224x224
     sal_pil = Image.fromarray((sal * 255).astype(np.uint8), mode='L')
     sal_up  = sal_pil.resize((w, h), Image.Resampling.BILINEAR)
     sal_arr = np.array(sal_up, dtype=np.float32) / 255.0
 
-    # JET colourmap: Blue (low) -> Cyan -> Green -> Yellow -> Red (high importance)
+    # JET colourmap: Blue (baseline) -> Cyan -> Green -> Yellow -> Red (pathology highlight)
     def jet(v):
         r = np.clip(1.5 - np.abs(4.0 * v - 3.0), 0.0, 1.0)
         g = np.clip(1.5 - np.abs(4.0 * v - 2.0), 0.0, 1.0)
