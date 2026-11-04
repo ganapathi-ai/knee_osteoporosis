@@ -78,7 +78,7 @@ def _mock_predict(image_bytes: bytes) -> dict:
     digest   = hashlib.md5(image_bytes).hexdigest()
     rng      = random.Random(int(digest[:8], 16))
     prob     = round(rng.uniform(0.05, 0.95), 4)
-    threshold        = 0.2585
+    threshold        = 0.5000
     uncertainty_band = 0.08
     in_uncertainty   = abs(prob - threshold) <= uncertainty_band
     is_pathology     = prob >= threshold

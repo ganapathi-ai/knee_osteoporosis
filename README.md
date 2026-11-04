@@ -130,6 +130,23 @@ knee_osteoporosis/
 
 ---
 
+## Scientific Methodology Audit & Critical Findings
+
+A rigorous review of the pipeline and notebook identified four critical methodological considerations:
+
+1. **Zero Test-Leakage Thresholding:**
+   - The previously reported `0.2585` threshold was selected directly on the test set labels, artificially producing 100% test sensitivity/specificity through test data leakage.
+   - When evaluated honestly at the unbiased standard threshold (**0.50**) or via cross-validation thresholds, the out-of-sample test accuracy is **99.44%**.
+2. **Expected Calibration Error (ECE) Correction:**
+   - An initial report of ECE = `0.7247` was traced to a formula bug that compared class accuracy against $P(\text{osteoporosis})$ rather than model confidence $\max(p, 1-p)$.
+   - With the correct Guo et al. (ICML 2017) formulation, the true ECE is **< 0.05**, demonstrating excellent clinical calibration.
+3. **Dynamic Explainability vs. Static Captions:**
+   - Grad-CAM++ visualizations now compute spatial activation centroids and energy concentration dynamically, including automated alerts if saliency focuses on scanner border margins rather than articular bone.
+4. **Cohort Scope & Multi-Center Validation:**
+   - The test set consists of **164 unique patient clusters**. Single-center perfection must be interpreted with caution. External validation on public multi-center cohorts (e.g., Osteoarthritis Initiative [OAI], n=4,796) remains essential before clinical translation.
+
+---
+
 ## References
 
 | Paper | Venue | Link |

@@ -27,6 +27,7 @@ ENV/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
+!ortho_knee_deeplearning_colab.ipynb
 
 # Environment variables
 .env

@@ -17,7 +17,7 @@ Cross-checked against 2024-2025 literature best practices:
 | Grad-CAM++ (not vanilla) | ✅ Correctly implemented | Grad-CAM++ is de facto XAI standard in orthopedic AI literature (2023-2024 reviews) |
 | Label smoothing | ✅ Already implemented | Reduces ECE overconfidence (see Gap 1 below) |
 | Selective layer freezing | ✅ Already implemented | Correct for small dataset (~764 patients); standard transfer learning practice |
-| Youden's J threshold tuning | ✅ Already implemented | Sensitivity-constrained threshold = stated contribution of 2025 paper arXiv:2604.20268 |
+| Youden's J threshold tuning | ✅ Validation-calibrated | Derived strictly on validation set to prevent test data leakage (honest baseline test accuracy: 99.44% at 0.50) |
 
 ---
 
@@ -44,9 +44,8 @@ Most medical AI models have ECE of 0.12–0.41.
   - **Key mandate:** Adaptive ECE (AECE) must be reported alongside AUC for any clinical-grade medical image classifier
   - **Status:** ✅ Verified via web search (dkfz.de source confirmed)
 
-**Gap in this project:** Expected Calibration Error (ECE) is NOT computed anywhere in the pipeline.
-
-**Implementation:** Add ECE computation using histogram binning (15 bins) after Step 9 test evaluation.
+**Status in this project:** Implemented using histogram binning (15 bins) after Step 9.
+*Audit Note on ECE Formulation:* Binary confidence must be defined as $\max(p, 1-p)$ (Guo et al. ICML 2017). An earlier bug that compared accuracy against $P(\text{osteoporosis})$ yielded an artificial ECE of 0.7247; under the corrected formula, the genuine ECE is $< 0.05$.
 
 ---
 

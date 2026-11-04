@@ -77,6 +77,23 @@ class KneeRadiographONNXPredictor:
         if image.size[0] > image.size[1]:
             image = image.transpose(Image.Transpose.ROTATE_90)
             
+        # 0b. Knee Joint ROI Cropping: Remove peripheral black border padding
+        gray = np.array(image.convert('L'))
+        non_pad = (gray > 15)
+        if non_pad.sum() >= (gray.size * 0.10):
+            y_proj = np.any(non_pad, axis=1)
+            x_proj = np.any(non_pad, axis=0)
+            y_indices = np.where(y_proj)[0]
+            x_indices = np.where(x_proj)[0]
+            if len(y_indices) > 0 and len(x_indices) > 0:
+                h, w = gray.shape
+                y_min = max(0, y_indices[0] - int(0.02 * h))
+                y_max = min(h, y_indices[-1] + int(0.02 * h))
+                x_min = max(0, x_indices[0] - int(0.02 * w))
+                x_max = min(w, x_indices[-1] + int(0.02 * w))
+                if (x_max - x_min) >= 30 and (y_max - y_min) >= 30:
+                    image = image.crop((x_min, y_min, x_max, y_max))
+            
         # 1. Bilinear resize to 224x224
         image = image.resize(self.input_size, Image.Resampling.BILINEAR)
         
