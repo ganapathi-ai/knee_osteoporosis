@@ -967,150 +967,364 @@ btnAn.addEventListener('click', async () => {
 'use strict';
 
 const canvas = document.getElementById('bone-canvas');
+if (!canvas) return;
+
 const gl = canvas.getContext('webgl2', {
-  antialias: true, alpha: false, depth: true,
+  antialias: true,
+  alpha: false,
+  depth: true,
   powerPreference: 'high-performance'
 });
+
 if (!gl) {
   console.error('OrthoScan: WebGL 2 not supported.');
-  var eb = document.getElementById('webgl-err');
+  const eb = document.getElementById('webgl-err');
   if (eb) eb.style.display = 'block';
   return;
 }
 
-// Use window.innerWidth/Height — reliable for position:fixed canvas
+// ── Viewport Resize ──────────────────────────────────────
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const W = window.innerWidth;
   const H = window.innerHeight;
-  canvas.width  = Math.round(W * dpr);
-  canvas.height = Math.round(H * dpr);
+  canvas.width  = Math.max(300, Math.round(W * dpr));
+  canvas.height = Math.max(300, Math.round(H * dpr));
   gl.viewport(0, 0, canvas.width, canvas.height);
 }
-// Delay first resize by one frame so the DOM/CSS is fully laid out
-requestAnimationFrame(function() { resize(); });
+resize();
 window.addEventListener('resize', resize);
 
 // ── Shaders ──────────────────────────────────────────────
 const VS_NODE = `#version 300 es
 precision highp float;
 uniform mat4 u_mvp;
-in vec3  a_pos; in vec3 a_col; in float a_alive;
-out vec3 v_col; out float v_alive;
+in vec3  a_pos;
+in vec3  a_col;
+in float a_alive;
+out vec3  v_col;
+out float v_alive;
 void main() {
-  v_col=a_col; v_alive=a_alive;
-  vec4 p = u_mvp*vec4(a_pos,1.0); gl_Position=p;
-  float sz = 6.5*a_alive/(0.35+abs(p.z)*0.12);
-  gl_PointSize = clamp(sz,1.0,11.0);
+  if (a_alive <= 0.005) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    gl_PointSize = 0.0;
+    return;
+  }
+  v_col   = a_col;
+  v_alive = a_alive;
+  vec4 p = u_mvp * vec4(a_pos, 1.0);
+  gl_Position = p;
+  float sz = (16.0 * a_alive) / max(0.5, p.w * 0.25);
+  gl_PointSize = clamp(sz, 3.0, 16.0);
 }`;
+
 const FS_NODE = `#version 300 es
 precision highp float;
-in vec3 v_col; in float v_alive; out vec4 fc;
+in vec3  v_col;
+in float v_alive;
+out vec4 fc;
 void main() {
-  vec2 uv=gl_PointCoord*2.0-1.0; float d=dot(uv,uv);
-  if(d>1.0)discard;
-  float core=exp(-d*2.8)*0.65;
-  fc=vec4(v_col+core,(1.0-d*d)*v_alive*0.94);
+  vec2 uv = gl_PointCoord * 2.0 - 1.0;
+  float d2 = dot(uv, uv);
+  if (d2 > 1.0) discard;
+  float alpha = (1.0 - d2) * v_alive;
+  float glow = exp(-d2 * 2.0) * 0.75;
+  vec3 col = v_col + glow;
+  fc = vec4(col, alpha);
 }`;
+
 const VS_EDGE = `#version 300 es
 precision highp float;
 uniform mat4 u_mvp;
-in vec3 a_pos; in vec3 a_col; in float a_alive;
-out vec3 v_col; out float v_alive;
-void main(){ v_col=a_col; v_alive=a_alive; gl_Position=u_mvp*vec4(a_pos,1.0); }`;
+in vec3  a_pos;
+in vec3  a_col;
+in float a_alive;
+out vec3  v_col;
+out float v_alive;
+void main() {
+  if (a_alive <= 0.005) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    return;
+  }
+  v_col   = a_col;
+  v_alive = a_alive;
+  gl_Position = u_mvp * vec4(a_pos, 1.0);
+}`;
+
 const FS_EDGE = `#version 300 es
 precision highp float;
-in vec3 v_col; in float v_alive; out vec4 fc;
-void main(){ fc=vec4(v_col,v_alive*0.40); }`;
+in vec3  v_col;
+in float v_alive;
+out vec4 fc;
+void main() {
+  fc = vec4(v_col, v_alive * 0.55);
+}`;
 
-function mkShader(t,s){ const sh=gl.createShader(t); gl.shaderSource(sh,s); gl.compileShader(sh); return sh; }
-function mkProg(vs,fs){ const p=gl.createProgram(); gl.attachShader(p,mkShader(gl.VERTEX_SHADER,vs)); gl.attachShader(p,mkShader(gl.FRAGMENT_SHADER,fs)); gl.linkProgram(p); return p; }
-const progN=mkProg(VS_NODE,FS_NODE), progE=mkProg(VS_EDGE,FS_EDGE);
-
-// ── Mat4 ─────────────────────────────────────────────────
-const id4=()=>new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
-function mul4(a,b){ const r=new Float32Array(16); for(let i=0;i<4;i++)for(let j=0;j<4;j++)for(let k=0;k<4;k++)r[i*4+j]+=a[i*4+k]*b[k*4+j]; return r; }
-function persp(fov,asp,n,f){ const t=1/Math.tan(fov*.5),nf=1/(n-f),m=new Float32Array(16); m[0]=t/asp;m[5]=t;m[10]=(f+n)*nf;m[11]=-1;m[14]=2*f*n*nf; return m; }
-function rotX(a){ const c=Math.cos(a),s=Math.sin(a); return new Float32Array([1,0,0,0,0,c,s,0,0,-s,c,0,0,0,0,1]); }
-function rotY(a){ const c=Math.cos(a),s=Math.sin(a); return new Float32Array([c,0,-s,0,0,1,0,0,s,0,c,0,0,0,0,1]); }
-function transl(z){ const m=id4(); m[14]=z; return m; }
-
-// ── Colors ───────────────────────────────────────────────
-const CC=[0.0,0.482,0.655], CM=[0.42,0.28,0.72], CR=[1.0,0.176,0.584];
-function lerp3(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
-
-// ── Lattice ───────────────────────────────────────────────
-const GX=11,GY=13,GZ=11, NT=GX*GY*GZ;
-const nPos=new Float32Array(NT*3), nBase=[], nValid=new Uint8Array(NT), nDeath=new Float32Array(NT);
-
-for(let ix=0;ix<GX;ix++) for(let iy=0;iy<GY;iy++) for(let iz=0;iz<GZ;iz++){
-  const i=ix*GY*GZ+iy*GZ+iz;
-  const nx=(ix/(GX-1))*2-1, ny=(iy/(GY-1))*2-1, nz=(iz/(GZ-1))*2-1;
-  const r=(nx*nx)/(0.88*0.88)+((ny+0.08)*(ny+0.08))/(1.06*1.06)+(nz*nz)/(0.82*0.82);
-  if(r>1.0){nValid[i]=0;continue;}
-  nValid[i]=1;
-  const sc=1.95;
-  nPos[i*3+0]=nx*sc+(Math.random()-.5)*0.14;
-  nPos[i*3+1]=ny*sc+(Math.random()-.5)*0.11;
-  nPos[i*3+2]=nz*sc+(Math.random()-.5)*0.14;
-  const depth=Math.sqrt(r);
-  const c=lerp3(CM,CC,Math.pow(depth,0.5));
-  nBase.push(c[0],c[1],c[2]);
-  nDeath[i]=(1-Math.pow(depth,0.4))*0.65+Math.random()*0.35;
+function compileShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error('Shader compile error:', gl.getShaderInfoLog(s));
+  }
+  return s;
 }
 
-const edges=[];
-for(let ix=0;ix<GX;ix++) for(let iy=0;iy<GY;iy++) for(let iz=0;iz<GZ;iz++){
-  const a=ix*GY*GZ+iy*GZ+iz; if(!nValid[a])continue;
-  for(const [dx,dy,dz] of [[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1]]){
-    const jx=ix+dx,jy=iy+dy,jz=iz+dz;
-    if(jx>=GX||jy>=GY||jz>=GZ)continue;
-    const b=jx*GY*GZ+jy*GZ+jz; if(!nValid[b])continue;
-    edges.push(a,b);
+function createProgram(vsSrc, fsSrc) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl.VERTEX_SHADER, vsSrc));
+  gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    console.error('Program link error:', gl.getProgramInfoLog(p));
+  }
+  return p;
+}
+
+const progNode = createProgram(VS_NODE, FS_NODE);
+const progEdge = createProgram(VS_EDGE, FS_EDGE);
+const uMvpNode = gl.getUniformLocation(progNode, 'u_mvp');
+const uMvpEdge = gl.getUniformLocation(progEdge, 'u_mvp');
+
+// ── Standard OpenGL Column-Major Matrix Math ──────────────
+function mat4Identity() {
+  const m = new Float32Array(16);
+  m[0] = 1; m[5] = 1; m[10] = 1; m[15] = 1;
+  return m;
+}
+
+function mat4Multiply(a, b) {
+  const out = new Float32Array(16);
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 4; r++) {
+      let sum = 0;
+      for (let k = 0; k < 4; k++) {
+        sum += a[k * 4 + r] * b[c * 4 + k];
+      }
+      out[c * 4 + r] = sum;
+    }
+  }
+  return out;
+}
+
+function mat4Perspective(fovy, aspect, near, far) {
+  const f = 1.0 / Math.tan(fovy / 2.0);
+  const nf = 1.0 / (near - far);
+  const out = new Float32Array(16);
+  out[0] = f / aspect;
+  out[5] = f;
+  out[10] = (far + near) * nf;
+  out[11] = -1.0;
+  out[14] = (2.0 * far * near) * nf;
+  return out;
+}
+
+function mat4Translate(x, y, z) {
+  const out = mat4Identity();
+  out[12] = x;
+  out[13] = y;
+  out[14] = z;
+  return out;
+}
+
+function mat4RotX(rad) {
+  const out = mat4Identity();
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  out[5] = c;
+  out[6] = s;
+  out[9] = -s;
+  out[10] = c;
+  return out;
+}
+
+function mat4RotY(rad) {
+  const out = mat4Identity();
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  out[0] = c;
+  out[2] = -s;
+  out[8] = s;
+  out[10] = c;
+  return out;
+}
+
+// ── Color System ─────────────────────────────────────────
+// Jet Black #0a0a0a | Cerulean #007ba7 | Neon Rose #ff2d95
+const C_CERULEAN = [0.0, 0.482, 0.655];
+const C_MID      = [0.42, 0.28, 0.72];
+const C_ROSE     = [1.0, 0.176, 0.584];
+
+function lerp3(a, b, t) {
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t
+  ];
+}
+
+// ── Procedural Trabecular Bone Lattice ───────────────────
+const GX = 11, GY = 13, GZ = 11;
+const NT = GX * GY * GZ;
+const nPos   = new Float32Array(NT * 3);
+const nBase  = [];
+const nValid = new Uint8Array(NT);
+const nDeath = new Float32Array(NT);
+
+for (let ix = 0; ix < GX; ix++) {
+  for (let iy = 0; iy < GY; iy++) {
+    for (let iz = 0; iz < GZ; iz++) {
+      const i = ix * GY * GZ + iy * GZ + iz;
+      const nx = (ix / (GX - 1)) * 2 - 1;
+      const ny = (iy / (GY - 1)) * 2 - 1;
+      const nz = (iz / (GZ - 1)) * 2 - 1;
+
+      // Femoral condyle organic cross-section (ellipsoid)
+      const r = (nx * nx) / (0.88 * 0.88) +
+                ((ny + 0.08) * (ny + 0.08)) / (1.06 * 1.06) +
+                (nz * nz) / (0.82 * 0.82);
+
+      if (r > 1.0) { nValid[i] = 0; continue; }
+      nValid[i] = 1;
+
+      const sc = 1.95;
+      nPos[i * 3 + 0] = nx * sc + (Math.random() - 0.5) * 0.14;
+      nPos[i * 3 + 1] = ny * sc + (Math.random() - 0.5) * 0.11;
+      nPos[i * 3 + 2] = nz * sc + (Math.random() - 0.5) * 0.14;
+
+      const depth = Math.sqrt(r);
+      const c = lerp3(C_MID, C_CERULEAN, Math.pow(depth, 0.5));
+      nBase.push(c[0], c[1], c[2]);
+
+      // Interior cancellous bone demineralizes first, outer cortex last
+      nDeath[i] = (1.0 - Math.pow(depth, 0.4)) * 0.65 + Math.random() * 0.35;
+    }
   }
 }
-const NE=edges.length>>1;
 
-// ── GPU buffers ───────────────────────────────────────────
-const npA=new Float32Array(NT*3), ncA=new Float32Array(NT*3), naA=new Float32Array(NT);
-const epA=new Float32Array(NE*2*3), ecA=new Float32Array(NE*2*3), eaA=new Float32Array(NE*2);
+// Connect struts to adjacent and diagonal neighbors
+const edges = [];
+for (let ix = 0; ix < GX; ix++) {
+  for (let iy = 0; iy < GY; iy++) {
+    for (let iz = 0; iz < GZ; iz++) {
+      const a = ix * GY * GZ + iy * GZ + iz;
+      if (!nValid[a]) continue;
+      for (const [dx, dy, dz] of [[1,0,0], [0,1,0], [0,0,1], [1,1,0], [1,0,1], [0,1,1]]) {
+        const jx = ix + dx, jy = iy + dy, jz = iz + dz;
+        if (jx >= GX || jy >= GY || jz >= GZ) continue;
+        const b = jx * GY * GZ + jy * GZ + jz;
+        if (!nValid[b]) continue;
+        edges.push(a, b);
+      }
+    }
+  }
+}
+const NE = edges.length >> 1;
 
-function mkBuf(d){ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,d,gl.DYNAMIC_DRAW); return b; }
-const bNP=mkBuf(npA),bNC=mkBuf(ncA),bNA=mkBuf(naA);
-const bEP=mkBuf(epA),bEC=mkBuf(ecA),bEA=mkBuf(eaA);
+// ── CPU Data Buffers ─────────────────────────────────────
+const npA = new Float32Array(NT * 3);
+const ncA = new Float32Array(NT * 3);
+const naA = new Float32Array(NT);
+const epA = new Float32Array(NE * 2 * 3);
+const ecA = new Float32Array(NE * 2 * 3);
+const eaA = new Float32Array(NE * 2);
 
-function up(b,d){ gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,d,gl.DYNAMIC_DRAW); }
-function ba(prog,name,buf,sz){ const loc=gl.getAttribLocation(prog,name); if(loc<0)return; gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,sz,gl.FLOAT,false,0,0); }
+function createGlBuffer(data) {
+  const b = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, b);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+  return b;
+}
 
-// ── Sim state ─────────────────────────────────────────────
-let dT=0, tT=0;
+const bNP = createGlBuffer(npA), bNC = createGlBuffer(ncA), bNA = createGlBuffer(naA);
+const bEP = createGlBuffer(epA), bEC = createGlBuffer(ecA), bEA = createGlBuffer(eaA);
 
-// ── Camera ────────────────────────────────────────────────
-let rX=-0.22, rY=0.5, zoom=4.8;
-let drag=false, lmx=0,lmy=0, autoSpin=true;
-let ltx=0,lty=0;
+// ── VAO Setup ────────────────────────────────────────────
+function setupVertexAttributes(prog, posBuf, colBuf, aliveBuf) {
+  const locPos   = gl.getAttribLocation(prog, 'a_pos');
+  const locCol   = gl.getAttribLocation(prog, 'a_col');
+  const locAlive = gl.getAttribLocation(prog, 'a_alive');
 
-canvas.addEventListener('mousedown',  e=>{ drag=true; lmx=e.clientX; lmy=e.clientY; autoSpin=false;
-  document.getElementById('drag-hint').classList.add('gone'); });
-window.addEventListener('mouseup',    ()=>{ drag=false; });
-window.addEventListener('mousemove',  e=>{ if(!drag)return; rY+=(e.clientX-lmx)*.009; rX+=(e.clientY-lmy)*.007;
-  rX=Math.max(-1.1,Math.min(1.1,rX)); lmx=e.clientX; lmy=e.clientY; });
-canvas.addEventListener('wheel',      e=>{ zoom+=e.deltaY*.006; zoom=Math.max(3,Math.min(9,zoom)); e.preventDefault(); },{passive:false});
-canvas.addEventListener('touchstart', e=>{ ltx=e.touches[0].clientX; lty=e.touches[0].clientY; autoSpin=false; });
-canvas.addEventListener('touchmove',  e=>{ rY+=(e.touches[0].clientX-ltx)*.011; rX+=(e.touches[0].clientY-lty)*.009;
-  rX=Math.max(-1.1,Math.min(1.1,rX)); ltx=e.touches[0].clientX; lty=e.touches[0].clientY; e.preventDefault(); },{passive:false});
+  if (locPos >= 0) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+    gl.enableVertexAttribArray(locPos);
+    gl.vertexAttribPointer(locPos, 3, gl.FLOAT, false, 0, 0);
+  }
+  if (locCol >= 0) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, colBuf);
+    gl.enableVertexAttribArray(locCol);
+    gl.vertexAttribPointer(locCol, 3, gl.FLOAT, false, 0, 0);
+  }
+  if (locAlive >= 0) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuf);
+    gl.enableVertexAttribArray(locAlive);
+    gl.vertexAttribPointer(locAlive, 1, gl.FLOAT, false, 0, 0);
+  }
+}
 
-// ── Mode API (called by buttons + prediction result) ──────
+const vaoNode = gl.createVertexArray();
+gl.bindVertexArray(vaoNode);
+setupVertexAttributes(progNode, bNP, bNC, bNA);
+
+const vaoEdge = gl.createVertexArray();
+gl.bindVertexArray(vaoEdge);
+setupVertexAttributes(progEdge, bEP, bEC, bEA);
+
+gl.bindVertexArray(null);
+
+// ── Simulation State ─────────────────────────────────────
+let dT = 0.0;       // Current degradation fraction [0, 1]
+let tT = 0.0;       // Target degradation fraction
+
+// ── Camera Orbit Controls ────────────────────────────────
+let rX = -0.22, rY = 0.5, zoom = 4.8;
+let drag = false, lmx = 0, lmy = 0, autoSpin = true;
+let ltx = 0, lty = 0;
+
+canvas.addEventListener('mousedown', e => {
+  drag = true; lmx = e.clientX; lmy = e.clientY; autoSpin = false;
+  const hint = document.getElementById('drag-hint');
+  if (hint) hint.classList.add('gone');
+});
+window.addEventListener('mouseup', () => { drag = false; });
+window.addEventListener('mousemove', e => {
+  if (!drag) return;
+  rY += (e.clientX - lmx) * 0.008;
+  rX += (e.clientY - lmy) * 0.006;
+  rX = Math.max(-1.1, Math.min(1.1, rX));
+  lmx = e.clientX; lmy = e.clientY;
+});
+window.addEventListener('wheel', e => {
+  if (e.target.closest && e.target.closest('.analysis-panel')) return;
+  zoom += e.deltaY * 0.005;
+  zoom = Math.max(3.0, Math.min(8.5, zoom));
+}, { passive: true });
+
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length > 0) {
+    ltx = e.touches[0].clientX; lty = e.touches[0].clientY; autoSpin = false;
+  }
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length > 0) {
+    rY += (e.touches[0].clientX - ltx) * 0.01;
+    rX += (e.touches[0].clientY - lty) * 0.008;
+    rX = Math.max(-1.1, Math.min(1.1, rX));
+    ltx = e.touches[0].clientX; lty = e.touches[0].clientY;
+  }
+}, { passive: true });
+
+// ── Mode Switcher (Global API) ───────────────────────────
 window.simSetMode = function(mode) {
-  tT = mode==='healthy'?0 : mode==='degrading'?0.48 : 1.0;
-  document.querySelectorAll('.sim-btn').forEach(b=>{ b.className='sim-btn'; });
-  const cls = mode==='osteoporotic'?'active-r':'active-c';
-  const id  = mode==='healthy'?'sbtn-healthy':mode==='degrading'?'sbtn-degrading':'sbtn-osteo';
+  tT = mode === 'healthy' ? 0.0 : mode === 'degrading' ? 0.48 : 1.0;
+  document.querySelectorAll('.sim-btn').forEach(b => { b.className = 'sim-btn'; });
+  const cls = mode === 'osteoporotic' ? 'active-r' : 'active-c';
+  const id  = mode === 'healthy' ? 'sbtn-healthy' : mode === 'degrading' ? 'sbtn-degrading' : 'sbtn-osteo';
   const el  = document.getElementById(id);
-  if(el) el.classList.add(cls);
+  if (el) el.classList.add(cls);
 };
 
-// ── HUD refs ──────────────────────────────────────────────
+// ── Real-Time HUD Synchronization ────────────────────────
 const spBmd   = document.getElementById('sp-bmd');
 const spTs    = document.getElementById('sp-tscore');
 const spPoros = document.getElementById('sp-poros');
@@ -1118,78 +1332,112 @@ const spNodes = document.getElementById('sp-nodes');
 const bmdBar  = document.getElementById('bmd-bar');
 
 function updateHUD(t) {
-  const bmd   = (1.24-t*.76).toFixed(2);
-  const ts    = (0.8-t*3.3).toFixed(1);
-  const poros = Math.round(12+t*52);
-  const nodes = Math.round(NT*(1-t*.72));
-  if(spBmd) { spBmd.textContent=bmd; spBmd.className='spc-val '+(t<0.4?'c':'r'); }
-  if(spTs)    spTs.textContent=(parseFloat(ts)>=0?'+':'')+ts;
-  if(spPoros) spPoros.textContent=poros+'%';
-  if(spNodes) spNodes.textContent=nodes;
-  if(bmdBar)  bmdBar.style.width=Math.max(5,85-t*78)+'%';
+  const bmd   = (1.24 - t * 0.76).toFixed(2);
+  const ts    = (0.8 - t * 3.3).toFixed(1);
+  const poros = Math.round(12 + t * 52);
+  const nodes = Math.round(NT * (1.0 - t * 0.72));
+  if (spBmd)   { spBmd.textContent = bmd; spBmd.className = 'spc-val ' + (t < 0.4 ? 'c' : 'r'); }
+  if (spTs)    spTs.textContent = (parseFloat(ts) >= 0 ? '+' : '') + ts;
+  if (spPoros) spPoros.textContent = poros + '%';
+  if (spNodes) spNodes.textContent = nodes;
+  if (bmdBar)  bmdBar.style.width = Math.max(5, 85 - t * 78) + '%';
 }
 
-// ── Render loop ───────────────────────────────────────────
-let prev=0, started=false;
-function frame(ts) {
-  // Ensure canvas is sized on first draw
-  if (!started) { resize(); started = true; }
-  const dt=Math.min((ts-prev)/1000,0.05); prev=ts;
-  dT += (tT-dT)*Math.min(1,dt*1.4);
-  if(autoSpin) rY+=dt*0.14;
+// ── Main Render Loop ─────────────────────────────────────
+let prevTime = 0;
 
-  // Build node data
-  for(let i=0;i<NT;i++){
-    if(!nValid[i]){naA[i]=0;continue;}
-    const d=nDeath[i];
-    const alive=Math.max(0,Math.min(1,(d-dT)/0.1+1));
-    const tc=Math.max(0,Math.min(1,(dT-d+0.12)/0.3));
-    const bc=[nBase[i*3],nBase[i*3+1],nBase[i*3+2]];
-    const col=tc<0.5?lerp3(bc,CM,tc*2):lerp3(CM,CR,(tc-.5)*2);
-    npA[i*3]=nPos[i*3]; npA[i*3+1]=nPos[i*3+1]; npA[i*3+2]=nPos[i*3+2];
-    ncA[i*3]=col[0]; ncA[i*3+1]=col[1]; ncA[i*3+2]=col[2];
-    naA[i]=alive;
+function frame(ts) {
+  const dt = Math.min((ts - prevTime) / 1000, 0.05);
+  prevTime = ts;
+
+  // Smooth degradation animation towards target state
+  dT += (tT - dT) * Math.min(1.0, dt * 1.5);
+  if (autoSpin) rY += dt * 0.16;
+
+  // 1. Populate node buffers
+  for (let i = 0; i < NT; i++) {
+    if (!nValid[i]) { naA[i] = 0; continue; }
+    const d = nDeath[i];
+    const alive = Math.max(0, Math.min(1, (d - dT) / 0.1 + 1));
+    const tc = Math.max(0, Math.min(1, (dT - d + 0.12) / 0.3));
+    const bc = [nBase[i * 3], nBase[i * 3 + 1], nBase[i * 3 + 2]];
+    const col = tc < 0.5 ? lerp3(bc, C_MID, tc * 2) : lerp3(C_MID, C_ROSE, (tc - 0.5) * 2);
+
+    npA[i * 3 + 0] = nPos[i * 3 + 0];
+    npA[i * 3 + 1] = nPos[i * 3 + 1];
+    npA[i * 3 + 2] = nPos[i * 3 + 2];
+    ncA[i * 3 + 0] = col[0];
+    ncA[i * 3 + 1] = col[1];
+    ncA[i * 3 + 2] = col[2];
+    naA[i] = alive;
   }
 
-  // Build edge data
-  for(let e=0;e<NE;e++){
-    const ia=edges[e*2],ib=edges[e*2+1];
-    for(let v=0;v<2;v++){
-      const idx=v?ib:ia, bi=e*2+v;
-      epA[bi*3]=npA[idx*3]; epA[bi*3+1]=npA[idx*3+1]; epA[bi*3+2]=npA[idx*3+2];
-      ecA[bi*3]=ncA[idx*3]; ecA[bi*3+1]=ncA[idx*3+1]; ecA[bi*3+2]=ncA[idx*3+2];
-      eaA[bi]=naA[idx];
+  // 2. Populate edge strut buffers
+  for (let e = 0; e < NE; e++) {
+    const ia = edges[e * 2 + 0], ib = edges[e * 2 + 1];
+    for (let v = 0; v < 2; v++) {
+      const idx = v === 0 ? ia : ib;
+      const bi  = e * 2 + v;
+      epA[bi * 3 + 0] = npA[idx * 3 + 0];
+      epA[bi * 3 + 1] = npA[idx * 3 + 1];
+      epA[bi * 3 + 2] = npA[idx * 3 + 2];
+      ecA[bi * 3 + 0] = ncA[idx * 3 + 0];
+      ecA[bi * 3 + 1] = ncA[idx * 3 + 1];
+      ecA[bi * 3 + 2] = ncA[idx * 3 + 2];
+      eaA[bi]         = naA[idx];
     }
   }
 
-  up(bNP,npA);up(bNC,ncA);up(bNA,naA);
-  up(bEP,epA);up(bEC,ecA);up(bEA,eaA);
+  // 3. Upload dynamic buffers to GPU
+  gl.bindBuffer(gl.ARRAY_BUFFER, bNP); gl.bufferData(gl.ARRAY_BUFFER, npA, gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bNC); gl.bufferData(gl.ARRAY_BUFFER, ncA, gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bNA); gl.bufferData(gl.ARRAY_BUFFER, naA, gl.DYNAMIC_DRAW);
 
-  const asp=canvas.width/canvas.height;
-  const mvp=mul4(mul4(persp(0.60,asp,0.1,100),transl(-zoom)),mul4(rotX(rX),rotY(rY)));
+  gl.bindBuffer(gl.ARRAY_BUFFER, bEP); gl.bufferData(gl.ARRAY_BUFFER, epA, gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bEC); gl.bufferData(gl.ARRAY_BUFFER, ecA, gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bEA); gl.bufferData(gl.ARRAY_BUFFER, eaA, gl.DYNAMIC_DRAW);
 
-  gl.clearColor(0.039,0.039,0.039,1);
-  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  // 4. Compute MVP matrix with standard column-major math
+  const aspect = canvas.width / canvas.height;
+  const proj   = mat4Perspective(0.65, aspect, 0.1, 100.0);
+  const trans  = mat4Translate(0, 0, -zoom);
+  const rx     = mat4RotX(rX);
+  const ry     = mat4RotY(rY);
+  const model  = mat4Multiply(ry, rx);
+  const mv     = mat4Multiply(trans, model);
+  const mvp    = mat4Multiply(proj, mv);
+
+  // 5. Render Scene: Jet Black Background + Additive Glow
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clearColor(0.039, 0.039, 0.039, 1.0); // #0a0a0a
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 
-  // Edges
-  gl.useProgram(progE);
-  gl.uniformMatrix4fv(gl.getUniformLocation(progE,'u_mvp'),false,mvp);
-  ba(progE,'a_pos',bEP,3);ba(progE,'a_col',bEC,3);ba(progE,'a_alive',bEA,1);
-  gl.drawArrays(gl.LINES,0,NE*2);
+  // Draw Struts (Lines)
+  gl.useProgram(progEdge);
+  gl.uniformMatrix4fv(uMvpEdge, false, mvp);
+  gl.bindVertexArray(vaoEdge);
+  gl.drawArrays(gl.LINES, 0, NE * 2);
 
-  // Nodes
-  gl.useProgram(progN);
-  gl.uniformMatrix4fv(gl.getUniformLocation(progN,'u_mvp'),false,mvp);
-  ba(progN,'a_pos',bNP,3);ba(progN,'a_col',bNC,3);ba(progN,'a_alive',bNA,1);
-  gl.drawArrays(gl.POINTS,0,NT);
+  // Draw Trabecular Nodes (Points with soft bloom)
+  gl.useProgram(progNode);
+  gl.uniformMatrix4fv(uMvpNode, false, mvp);
+  gl.bindVertexArray(vaoNode);
+  gl.drawArrays(gl.POINTS, 0, NT);
+
+  gl.bindVertexArray(null);
 
   updateHUD(dT);
   requestAnimationFrame(frame);
 }
-try { requestAnimationFrame(frame); } catch(err) { console.error("3D sim error:", err); }
+
+try {
+  requestAnimationFrame(frame);
+} catch (err) {
+  console.error('3D sim runtime error:', err);
+}
 })();
 {% endraw %}
 </script>
