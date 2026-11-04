@@ -638,9 +638,252 @@
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* =====================================================================
+       3D Simulation Hero
+       ===================================================================== */
+    .sim-hero {
+      width: 100vw;
+      margin-left: calc(-50vw + 50%);
+      position: relative;
+      height: 440px;
+      background: #0a0a0a;
+      overflow: hidden;
+      border-bottom: 1px solid rgba(0,123,167,0.18);
+    }
+
+    @media (max-width: 600px) { .sim-hero { height: 320px; } }
+
+    .sim-hero canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Sim top-bar overlay */
+    .sim-topbar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      pointer-events: none;
+    }
+
+    .sim-brand {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: rgba(255,255,255,0.75);
+    }
+
+    .sim-brand .s-cerulean { color: #42c8f0; }
+    .sim-brand .s-rose     { color: #ff2d95; }
+
+    .sim-badges {
+      display: flex;
+      gap: 6px;
+    }
+
+    .sim-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 100px;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+
+    .sb-cerulean {
+      background: rgba(0,123,167,0.14);
+      color: #42c8f0;
+      border: 1px solid rgba(0,123,167,0.3);
+    }
+
+    .sb-rose {
+      background: rgba(255,45,149,0.1);
+      color: #ff2d95;
+      border: 1px solid rgba(255,45,149,0.28);
+    }
+
+    .sim-badge .sdot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Sim mode buttons */
+    .sim-modes {
+      position: absolute;
+      bottom: 16px;
+      left: 24px;
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .sim-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(10,10,10,0.75);
+      color: rgba(255,255,255,0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: all 0.18s ease;
+      pointer-events: all;
+    }
+
+    .sim-btn:hover { color: #42c8f0; border-color: rgba(0,123,167,0.4); }
+
+    .sim-btn.active-cerulean {
+      background: rgba(0,123,167,0.16);
+      border-color: rgba(0,123,167,0.5);
+      color: #42c8f0;
+    }
+
+    .sim-btn.active-rose {
+      background: rgba(255,45,149,0.12);
+      border-color: rgba(255,45,149,0.4);
+      color: #ff2d95;
+    }
+
+    .sim-btn .sdot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    /* Sim HUD bottom-right */
+    .sim-hud-right {
+      position: absolute;
+      bottom: 16px;
+      right: 24px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .sim-stat {
+      background: rgba(10,10,10,0.72);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 7px 11px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      text-align: center;
+    }
+
+    .ss-label { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 2px; }
+    .ss-val   { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: #fff; }
+    .ss-val.cerulean { color: #42c8f0; }
+    .ss-val.rose     { color: #ff2d95; }
+
+    /* BMD strip */
+    .sim-bmd-strip {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      z-index: 10;
+    }
+
+    .sim-bmd-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #007ba7 0%, #42c8f0 60%, #ff2d95 100%);
+      transition: width 0.1s linear;
+    }
+
+    /* Drag hint */
+    .sim-drag-hint {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 11px;
+      color: rgba(255,255,255,0.15);
+      pointer-events: none;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: center;
+      transition: opacity 1s;
+    }
+
+    .sim-drag-hint.hidden { opacity: 0; }
   </style>
 </head>
 <body>
+
+<!-- ===== 3D TRABECULAR BONE SIMULATION HERO ===== -->
+<div class="sim-hero" id="sim-hero">
+
+  <canvas id="bone-canvas"></canvas>
+
+  <!-- Top bar -->
+  <div class="sim-topbar">
+    <span class="sim-brand">
+      Trabecular Bone <span class="s-cerulean">Microarchitecture</span> <span class="s-rose">3D</span>
+    </span>
+    <div class="sim-badges">
+      <span class="sim-badge sb-cerulean"><span class="sdot"></span>Cerulean = Dense</span>
+      <span class="sim-badge sb-rose"><span class="sdot"></span>Rose = Porous</span>
+    </div>
+  </div>
+
+  <!-- Mode selector -->
+  <div class="sim-modes">
+    <button class="sim-btn active-cerulean" id="sbtn-healthy"      onclick="simSetMode('healthy')">
+      <span class="sdot"></span>Healthy
+    </button>
+    <button class="sim-btn" id="sbtn-degrading"   onclick="simSetMode('degrading')">
+      <span class="sdot"></span>Degrading
+    </button>
+    <button class="sim-btn active-rose" style="display:none" id="sbtn-osteo" onclick="simSetMode('osteoporotic')">
+      <span class="sdot"></span>Osteoporotic
+    </button>
+  </div>
+  <!-- Show osteo after a delay -->
+  <script>setTimeout(()=>{ document.getElementById('sbtn-osteo').style.display='inline-flex'; }, 800);</script>
+
+  <!-- Stats HUD -->
+  <div class="sim-hud-right">
+    <div class="sim-stat">
+      <div class="ss-label">BMD</div>
+      <div class="ss-val cerulean" id="ss-bmd">1.24</div>
+    </div>
+    <div class="sim-stat">
+      <div class="ss-label">T-Score</div>
+      <div class="ss-val" id="ss-tscore">+0.8</div>
+    </div>
+    <div class="sim-stat">
+      <div class="ss-label">Porosity</div>
+      <div class="ss-val rose" id="ss-poros">12%</div>
+    </div>
+  </div>
+
+  <!-- BMD progress strip at bottom -->
+  <div class="sim-bmd-strip">
+    <div class="sim-bmd-bar" id="sim-bmd-bar" style="width:85%"></div>
+  </div>
+
+  <!-- Drag hint -->
+  <div class="sim-drag-hint" id="sim-drag-hint">Drag to rotate &nbsp;·&nbsp; Scroll to zoom</div>
+
+</div><!-- /sim-hero -->
 
 <div class="shell">
 
@@ -1041,6 +1284,350 @@
       btnAnalyze.querySelector('.btn-label').textContent = 'Analyze Radiograph';
     }
   });
+</script>
+
+<!-- ============================================================
+     3D Trabecular Bone Simulation — Pure WebGL 2
+     Colors: Jet Black #0a0a0a | Cerulean #007ba7 | Neon Rose #ff2d95
+     Context: Knee femoral condyle trabecular microarchitecture,
+              animated bone mineral density degradation (osteoporosis)
+     ============================================================ -->
+<script>
+(function() {
+'use strict';
+
+const canvas = document.getElementById('bone-canvas');
+if (!canvas) return;
+const gl = canvas.getContext('webgl2', { antialias: true, alpha: false, depth: true, powerPreference: 'high-performance' });
+if (!gl) { canvas.parentElement.style.display='none'; return; }
+
+// ── Resize canvas to its CSS size ────────────────────────────
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width  = canvas.clientWidth  * dpr;
+  canvas.height = canvas.clientHeight * dpr;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+resize();
+new ResizeObserver(resize).observe(canvas);
+
+// ── Shader sources ───────────────────────────────────────────
+const VS_NODE = `#version 300 es
+precision highp float;
+uniform mat4 u_mvp;
+uniform float u_time;
+in vec3  a_pos;
+in vec3  a_col;
+in float a_alive;
+out vec3  v_col;
+out float v_alive;
+void main() {
+  v_col   = a_col;
+  v_alive = a_alive;
+  vec4 p = u_mvp * vec4(a_pos, 1.0);
+  gl_Position = p;
+  float sz = 6.0 * a_alive / (0.4 + abs(p.z) * 0.15);
+  gl_PointSize = clamp(sz, 1.0, 10.0);
+}`;
+
+const FS_NODE = `#version 300 es
+precision highp float;
+in vec3  v_col;
+in float v_alive;
+out vec4 fragColor;
+void main() {
+  vec2 uv = gl_PointCoord * 2.0 - 1.0;
+  float d = dot(uv, uv);
+  if (d > 1.0) discard;
+  float core = exp(-d * 3.0) * 0.7;
+  fragColor = vec4(v_col + core, (1.0 - d*d) * v_alive * 0.95);
+}`;
+
+const VS_EDGE = `#version 300 es
+precision highp float;
+uniform mat4 u_mvp;
+in vec3  a_pos;
+in vec3  a_col;
+in float a_alive;
+out vec3  v_col;
+out float v_alive;
+void main() {
+  v_col   = a_col;
+  v_alive = a_alive;
+  gl_Position = u_mvp * vec4(a_pos, 1.0);
+}`;
+
+const FS_EDGE = `#version 300 es
+precision highp float;
+in vec3  v_col;
+in float v_alive;
+out vec4 fragColor;
+void main() {
+  fragColor = vec4(v_col, v_alive * 0.42);
+}`;
+
+// ── Shader/program helpers ───────────────────────────────────
+function compileShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  return s;
+}
+function makeProgram(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl.VERTEX_SHADER,   vs));
+  gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  return p;
+}
+const progNode = makeProgram(VS_NODE, FS_NODE);
+const progEdge = makeProgram(VS_EDGE, FS_EDGE);
+
+// ── Mat4 math ────────────────────────────────────────────────
+const id4 = () => new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+function mul4(a, b) {
+  const r = new Float32Array(16);
+  for (let i=0;i<4;i++) for(let j=0;j<4;j++) for(let k=0;k<4;k++) r[i*4+j]+=a[i*4+k]*b[k*4+j];
+  return r;
+}
+function perspective(fov, asp, n, f) {
+  const t = 1/Math.tan(fov*.5), nf=1/(n-f), m=new Float32Array(16);
+  m[0]=t/asp; m[5]=t; m[10]=(f+n)*nf; m[11]=-1; m[14]=2*f*n*nf; return m;
+}
+function rotX(a){ const c=Math.cos(a),s=Math.sin(a); return new Float32Array([1,0,0,0,0,c,s,0,0,-s,c,0,0,0,0,1]); }
+function rotY(a){ const c=Math.cos(a),s=Math.sin(a); return new Float32Array([c,0,-s,0,0,1,0,0,s,0,c,0,0,0,0,1]); }
+function transl(z){ const m=id4(); m[14]=z; return m; }
+
+// ── Color helpers ────────────────────────────────────────────
+const C_CERULEAN = [0.0,  0.482, 0.655];   // #007ba7
+const C_MID      = [0.42, 0.28,  0.72 ];   // deep purple
+const C_ROSE     = [1.0,  0.176, 0.584];   // #ff2d95
+
+function lerp3(a, b, t) {
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+}
+
+// ── Procedural trabecular lattice ────────────────────────────
+// Models cancellous bone cross-section at the femoral condyle.
+// Grid of nodes clipped to an organic ellipsoid, connected by struts.
+const GX=10, GY=12, GZ=10;
+const N_TOTAL = GX*GY*GZ;
+
+const nPos   = new Float32Array(N_TOTAL*3);  // world-space node positions
+const nBasec = [];   // base structural color (depth driven)
+const nValid = new Uint8Array(N_TOTAL);
+const nDeathT= new Float32Array(N_TOTAL);    // when this node "dies" (osteoporosis order)
+
+for (let ix=0; ix<GX; ix++) {
+  for (let iy=0; iy<GY; iy++) {
+    for (let iz=0; iz<GZ; iz++) {
+      const i = ix*GY*GZ + iy*GZ + iz;
+      const nx = (ix/(GX-1))*2-1;
+      const ny = (iy/(GY-1))*2-1;
+      const nz = (iz/(GZ-1))*2-1;
+      // Femoral condyle cross-section (bi-lobed ellipsoid, wider at equator)
+      const r = (nx*nx)/(0.88*0.88) + ((ny+0.1)*(ny+0.1))/(1.05*1.05) + (nz*nz)/(0.80*0.80);
+      if (r > 1.0) { nValid[i]=0; continue; }
+      nValid[i] = 1;
+      const sc = 1.9;
+      nPos[i*3+0] = nx*sc + (Math.random()-.5)*0.14;
+      nPos[i*3+1] = ny*sc + (Math.random()-.5)*0.11;
+      nPos[i*3+2] = nz*sc + (Math.random()-.5)*0.14;
+      // Surface = cortical (cerulean), interior = cancellous (mid)
+      const depth = Math.sqrt(r);
+      const c = lerp3(C_MID, C_CERULEAN, Math.pow(depth, 0.5));
+      nBasec.push(c[0], c[1], c[2]);
+      // Death order: interior first (cancellous), cortex last
+      nDeathT[i] = (1.0 - Math.pow(depth, 0.4)) * 0.65 + Math.random() * 0.35;
+    }
+  }
+}
+
+// Build edge list (adjacent + face diagonals)
+const edges = [];
+for (let ix=0; ix<GX; ix++) for (let iy=0; iy<GY; iy++) for (let iz=0; iz<GZ; iz++) {
+  const a = ix*GY*GZ + iy*GZ + iz;
+  if (!nValid[a]) continue;
+  for (const [dx,dy,dz] of [[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1]]) {
+    const jx=ix+dx, jy=iy+dy, jz=iz+dz;
+    if (jx>=GX||jy>=GY||jz>=GZ) continue;
+    const b = jx*GY*GZ + jy*GZ + jz;
+    if (!nValid[b]) continue;
+    edges.push(a, b);
+  }
+}
+const N_EDGES = edges.length >> 1;
+
+// ── GPU buffer sets ─────────────────────────────────────────
+const nodePosArr   = new Float32Array(N_TOTAL*3);
+const nodeColArr   = new Float32Array(N_TOTAL*3);
+const nodeAlvArr   = new Float32Array(N_TOTAL);
+const edgePosArr   = new Float32Array(N_EDGES*2*3);
+const edgeColArr   = new Float32Array(N_EDGES*2*3);
+const edgeAlvArr   = new Float32Array(N_EDGES*2);
+
+function mkBuf(data) {
+  const b = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, b);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+  return b;
+}
+
+const bufNP = mkBuf(nodePosArr), bufNC = mkBuf(nodeColArr), bufNA = mkBuf(nodeAlvArr);
+const bufEP = mkBuf(edgePosArr), bufEC = mkBuf(edgeColArr), bufEA = mkBuf(edgeAlvArr);
+
+function uploadBuf(buf, data) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+}
+
+function bindAttr(prog, name, buf, sz) {
+  const loc = gl.getAttribLocation(prog, name);
+  if (loc < 0) return;
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, sz, gl.FLOAT, false, 0, 0);
+}
+
+// ── Simulation state ─────────────────────────────────────────
+let degradeT = 0, targetT = 0;
+
+// ── Camera ───────────────────────────────────────────────────
+let camRotX = -0.25, camRotY = 0.5, camZoom = 5.2;
+let isDrag = false, lastMX = 0, lastMY = 0;
+let autoSpin = true;
+
+const hero = document.getElementById('sim-hero');
+hero.addEventListener('mousedown',  e => { isDrag=true; lastMX=e.clientX; lastMY=e.clientY; autoSpin=false;
+  document.getElementById('sim-drag-hint').classList.add('hidden'); });
+window.addEventListener('mouseup',  () => { isDrag=false; });
+window.addEventListener('mousemove', e => {
+  if (!isDrag) return;
+  camRotY += (e.clientX-lastMX)*0.009;
+  camRotX += (e.clientY-lastMY)*0.007;
+  camRotX = Math.max(-1.1, Math.min(1.1, camRotX));
+  lastMX=e.clientX; lastMY=e.clientY;
+});
+hero.addEventListener('wheel', e => {
+  camZoom += e.deltaY * 0.006;
+  camZoom = Math.max(3, Math.min(9, camZoom));
+  e.preventDefault();
+}, { passive: false });
+
+let lastTX=0, lastTY=0;
+hero.addEventListener('touchstart', e => { lastTX=e.touches[0].clientX; lastTY=e.touches[0].clientY; autoSpin=false; });
+hero.addEventListener('touchmove', e => {
+  camRotY += (e.touches[0].clientX-lastTX)*0.011;
+  camRotX += (e.touches[0].clientY-lastTY)*0.009;
+  camRotX = Math.max(-1.1, Math.min(1.1, camRotX));
+  lastTX=e.touches[0].clientX; lastTY=e.touches[0].clientY; e.preventDefault();
+}, { passive: false });
+
+// ── Mode API (called by buttons) ──────────────────────────────
+window.simSetMode = function(mode) {
+  if (mode === 'healthy')      targetT = 0;
+  if (mode === 'degrading')    targetT = 0.48;
+  if (mode === 'osteoporotic') targetT = 1.0;
+  document.querySelectorAll('.sim-btn').forEach(b => { b.className = 'sim-btn'; });
+  const cls = mode === 'osteoporotic' ? 'active-rose' : 'active-cerulean';
+  const id  = mode === 'healthy' ? 'sbtn-healthy' : (mode === 'degrading' ? 'sbtn-degrading' : 'sbtn-osteo');
+  const el  = document.getElementById(id);
+  if (el) el.classList.add(cls);
+};
+
+// ── HUD elements ──────────────────────────────────────────────
+const ssBmd    = document.getElementById('ss-bmd');
+const ssTscore = document.getElementById('ss-tscore');
+const ssPoros  = document.getElementById('ss-poros');
+const simBmdBar= document.getElementById('sim-bmd-bar');
+
+function updateSimHUD(t) {
+  const bmd    = (1.24 - t * 0.76).toFixed(2);
+  const tscore = (0.8 - t * 3.3).toFixed(1);
+  const poros  = Math.round(12 + t * 52);
+  if (ssBmd)    { ssBmd.textContent = bmd;    ssBmd.className = 'ss-val ' + (t<0.4?'cerulean':'rose'); }
+  if (ssTscore) { ssTscore.textContent = (parseFloat(tscore)>=0?'+':'')+tscore; }
+  if (ssPoros)  ssPoros.textContent = poros + '%';
+  if (simBmdBar) simBmdBar.style.width = Math.max(5, 85 - t*78) + '%';
+}
+
+// ── Render loop ───────────────────────────────────────────────
+let prevTs = 0;
+
+function frame(ts) {
+  const dt = Math.min((ts - prevTs)/1000, 0.05);
+  prevTs = ts;
+
+  degradeT += (targetT - degradeT) * Math.min(1, dt * 1.4);
+  if (autoSpin) camRotY += dt * 0.16;
+
+  // Fill node arrays
+  for (let i=0; i<N_TOTAL; i++) {
+    if (!nValid[i]) { nodeAlvArr[i]=0; continue; }
+    const death = nDeathT[i];
+    const alive = Math.max(0, Math.min(1, (death - degradeT)/0.1 + 1));
+    const tCol  = Math.max(0, Math.min(1, (degradeT - death + 0.12)/0.3));
+    const bc    = [nBasec[i*3], nBasec[i*3+1], nBasec[i*3+2]];
+    const col   = tCol < 0.5 ? lerp3(bc, C_MID, tCol*2) : lerp3(C_MID, C_ROSE, (tCol-.5)*2);
+    nodePosArr[i*3]   = nPos[i*3];
+    nodePosArr[i*3+1] = nPos[i*3+1];
+    nodePosArr[i*3+2] = nPos[i*3+2];
+    nodeColArr[i*3]   = col[0]; nodeColArr[i*3+1]=col[1]; nodeColArr[i*3+2]=col[2];
+    nodeAlvArr[i]     = alive;
+  }
+
+  // Fill edge arrays
+  for (let e=0; e<N_EDGES; e++) {
+    const ia=edges[e*2], ib=edges[e*2+1];
+    for (let v=0; v<2; v++) {
+      const idx=v?ib:ia, bi=(e*2+v);
+      edgePosArr[bi*3]   = nodePosArr[idx*3];
+      edgePosArr[bi*3+1] = nodePosArr[idx*3+1];
+      edgePosArr[bi*3+2] = nodePosArr[idx*3+2];
+      edgeColArr[bi*3]   = nodeColArr[idx*3];
+      edgeColArr[bi*3+1] = nodeColArr[idx*3+1];
+      edgeColArr[bi*3+2] = nodeColArr[idx*3+2];
+      edgeAlvArr[bi]     = nodeAlvArr[idx];
+    }
+  }
+
+  uploadBuf(bufNP, nodePosArr); uploadBuf(bufNC, nodeColArr); uploadBuf(bufNA, nodeAlvArr);
+  uploadBuf(bufEP, edgePosArr); uploadBuf(bufEC, edgeColArr); uploadBuf(bufEA, edgeAlvArr);
+
+  // MVP
+  const asp  = canvas.width / canvas.height;
+  const mvp  = mul4(mul4(perspective(0.60, asp, 0.1, 100), transl(-camZoom)), mul4(rotX(camRotX), rotY(camRotY)));
+
+  // Clear — jet black
+  gl.clearColor(0.039, 0.039, 0.039, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);  // additive → glow effect
+
+  // Draw edges
+  gl.useProgram(progEdge);
+  gl.uniformMatrix4fv(gl.getUniformLocation(progEdge,'u_mvp'), false, mvp);
+  bindAttr(progEdge,'a_pos',bufEP,3);
+  bindAttr(progEdge,'a_col',bufEC,3);
+  bindAttr(progEdge,'a_alive',bufEA,1);
+  gl.drawArrays(gl.LINES, 0, N_EDGES*2);
+
+  // Draw nodes
+  gl.useProgram(progNode);
+  gl.uniformMatrix4fv(gl.getUniformLocation(progNode,'u_mvp'), false, mvp);
+  gl.uniform1f(gl.getUniformLocation(progNode,'u_time'), ts*0.001);
+  bindAttr(progNode,'a_pos',bufNP,3);
+  bindAttr(progNode,'a_col',bufNC,3);
+  bindAttr(progNode,'a_alive',bufNA,1);
+  gl.drawArrays(gl.POINTS, 0, N_TOTAL);
+
+  updateSimHUD(degradeT);
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+})();
 </script>
 </body>
 </html>
