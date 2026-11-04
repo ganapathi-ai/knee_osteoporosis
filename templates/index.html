@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>OrthoScan AI — Knee Radiography Pathology &amp; Osteoporosis Detector</title>
+<title>OrthoScan AI — Knee Radiography Pathology &amp; 3D Joint Workstation</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -12,157 +12,214 @@
   --tomato:#f87171;--tomato-bg:rgba(248,113,113,0.14);
   --amber:#fbbf24;--amber-bg:rgba(251,191,36,0.12);
   --cerulean:#38bdf8;
-  --glass:rgba(12,12,24,0.85);--border:rgba(203,179,232,0.18);
-  --surface:rgba(18,18,34,0.78);
+  --glass:rgba(10,10,22,0.82);--border:rgba(203,179,232,0.18);
+  --surface:rgba(16,16,32,0.78);
 }
 html,body{
-  width:100%;min-height:100vh;
-  background:#070712;
-  background:radial-gradient(ellipse at 50% 25%, #18122c 0%, #060610 85%);
+  width:100%;height:100%;
+  background:#060610;
+  background:radial-gradient(ellipse at 50% 40%, #16102a 0%, #060610 85%);
   font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   color:#f1eff7;
-  overflow-x:hidden;
+  overflow:hidden;
 }
-canvas#gl{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:auto}
+
+/* 3D Background Canvas — Centered & Completely Visible at Start */
+canvas#gl{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  z-index:1;cursor:grab;
+}
+canvas#gl:active{cursor:grabbing}
 
 /* Top Navigation Bar */
 nav{
   position:fixed;top:0;left:0;right:0;z-index:50;
-  display:flex;align-items:center;padding:0 28px;height:56px;
-  background:rgba(8,8,22,0.94);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;height:54px;
+  background:rgba(8,8,20,0.92);border-bottom:1px solid var(--border);
   backdrop-filter:blur(18px);
 }
 .nav-brand{display:flex;align-items:center;gap:10px}
-.nav-logo{font-size:1.15rem;font-weight:800;letter-spacing:.3px;color:#fff}
+.nav-logo{font-size:1.1rem;font-weight:800;letter-spacing:.3px;color:#fff}
 .nav-logo span{color:var(--lavender)}
-.nav-sub{font-size:.76rem;color:#8a8aa0;letter-spacing:.4px;padding-left:12px;border-left:1px solid var(--border)}
-.nav-badges{margin-left:auto;display:flex;align-items:center;gap:10px}
+.nav-sub{font-size:.74rem;color:#8a8aa0;letter-spacing:.4px;padding-left:12px;border-left:1px solid var(--border)}
+.nav-badges{margin-left:auto;display:flex;align-items:center;gap:8px}
 .badge{
-  padding:4px 12px;border-radius:20px;font-size:.68rem;font-weight:600;
+  padding:4px 10px;border-radius:20px;font-size:.66rem;font-weight:600;
   letter-spacing:.5px;border:1px solid var(--border);
   background:rgba(203,179,232,.08);color:var(--lavender);
 }
 .badge.ok{border-color:rgba(56,189,248,.4);color:var(--cerulean);background:rgba(56,189,248,.08)}
 
-/* Main Layout Container — Centered Professional Stage */
-.main-stage{
-  position:relative;z-index:20;
-  max-width:1160px;margin:72px auto 60px auto;
-  padding:0 20px;
-  display:flex;flex-direction:column;align-items:center;
-}
-
 /* ════════════════════════════════════════════════════
-   STAGE 1: INTAKE & UPLOAD CONSOLE (Centered)
+   STARTING STATE: FLOATING SIDES (3D Visible at Center)
 ════════════════════════════════════════════════════ */
-.intake-card{
-  width:100%;max-width:620px;
-  background:var(--glass);border:1px solid var(--border);
-  border-radius:20px;padding:32px;
-  backdrop-filter:blur(24px);
-  box-shadow:0 24px 60px rgba(0,0,0,0.65);
-  text-align:center;transition:all .3s ease;
+
+/* Left Floating Upload Dock */
+.upload-dock{
+  position:fixed;top:70px;left:20px;z-index:20;width:310px;
+  max-height:calc(100vh - 90px);overflow-y:auto;
+  background:var(--glass);border:1px solid var(--border);border-radius:18px;
+  padding:18px;backdrop-filter:blur(24px);
+  box-shadow:0 20px 50px rgba(0,0,0,0.65);
+  transition:all .3s ease;
 }
-.intake-header{margin-bottom:20px}
-.intake-title{font-size:1.28rem;font-weight:800;color:#fff;letter-spacing:.2px;margin-bottom:6px}
-.intake-desc{font-size:.78rem;color:#8e8eb0;line-height:1.5}
+.dock-title{
+  font-size:.66rem;font-weight:700;letter-spacing:1.5px;
+  color:var(--lavender);margin-bottom:12px;text-transform:uppercase;
+  display:flex;align-items:center;gap:6px;
+}
+.dock-hint{
+  font-size:.72rem;color:#9a9ab6;line-height:1.45;margin-bottom:12px;
+}
 
 .drop-zone{
-  border:2px dashed rgba(203,179,232,.32);border-radius:14px;
-  padding:36px 20px;cursor:pointer;transition:all .22s ease;
+  border:2px dashed rgba(203,179,232,.3);border-radius:12px;
+  padding:22px 14px;text-align:center;cursor:pointer;transition:all .22s ease;
   background:rgba(203,179,232,.03);
 }
 .drop-zone:hover,.drop-zone.drag{
   border-color:var(--lavender);background:rgba(203,179,232,.09);
-  transform:scale(1.008);
+  transform:scale(1.01);
 }
-.drop-icon{font-size:2.6rem;margin-bottom:10px;opacity:.85}
-.drop-main-text{font-size:.95rem;font-weight:700;color:#e2def0;margin-bottom:4px}
-.drop-sub-text{font-size:.72rem;color:#7a7a96}
+.drop-icon{font-size:2rem;margin-bottom:6px;opacity:.9}
+.drop-title{font-size:.84rem;font-weight:700;color:#e8e4f5;margin-bottom:3px}
+.drop-desc{font-size:.66rem;color:#7c7c98}
 
-/* Selected preview inside intake */
-.intake-preview{
-  display:none;margin-top:16px;
-  background:rgba(6,6,16,0.6);border:1px solid var(--border);
-  border-radius:14px;overflow:hidden;
+/* Intake preview */
+.preview-box{
+  display:none;border-radius:12px;overflow:hidden;
+  border:1px solid var(--border);background:rgba(0,0,0,0.5);margin-top:4px;
 }
-.intake-img-wrap{
-  position:relative;width:100%;height:220px;
-  background:#030308;display:flex;align-items:center;justify-content:center;
+.preview-img-wrap{
+  position:relative;width:100%;height:165px;
+  background:#020206;display:flex;align-items:center;justify-content:center;
 }
-#intake-img{max-width:100%;max-height:220px;object-fit:contain;display:block}
-.intake-change-btn{
-  position:absolute;top:10px;right:10px;
-  padding:6px 14px;border-radius:8px;
-  background:rgba(12,12,24,0.9);border:1px solid var(--border);
-  color:#fff;font-size:.7rem;font-weight:600;cursor:pointer;
-  backdrop-filter:blur(10px);transition:all .2s;
+#preview-img{max-width:100%;max-height:165px;object-fit:contain;display:block}
+.change-btn{
+  position:absolute;top:8px;right:8px;
+  padding:5px 11px;border-radius:6px;
+  background:rgba(12,12,24,0.88);border:1px solid var(--border);
+  color:#fff;font-size:.68rem;font-weight:600;cursor:pointer;
+  backdrop-filter:blur(8px);transition:all .2s;
 }
-.intake-change-btn:hover{border-color:var(--lavender);color:var(--lavender)}
-.intake-meta{
-  padding:10px 16px;display:flex;justify-content:space-between;align-items:center;
-  font-size:.72rem;background:rgba(203,179,232,.04);
+.change-btn:hover{border-color:var(--lavender);color:var(--lavender)}
+.file-meta-row{
+  padding:8px 12px;display:flex;justify-content:space-between;align-items:center;
+  font-size:.68rem;background:rgba(203,179,232,.04);border-top:1px solid rgba(203,179,232,.1);
 }
-.intake-fname{font-weight:600;color:#ddd;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.intake-fsize{color:#777}
+.file-meta-name{font-weight:600;color:#ddd;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-meta-size{color:#777}
 
 .btn-analyze{
-  width:100%;margin-top:20px;padding:15px 20px;border-radius:12px;
+  width:100%;margin-top:14px;padding:13px 16px;border-radius:12px;
   border:1px solid rgba(203,179,232,.3);background:rgba(203,179,232,.08);
-  color:#666;font-size:.9rem;font-weight:800;letter-spacing:.6px;
+  color:#666;font-size:.82rem;font-weight:800;letter-spacing:.6px;
   text-transform:uppercase;cursor:not-allowed;transition:all .25s ease;
-  display:flex;align-items:center;justify-content:center;gap:10px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
 }
 .btn-analyze.ready{
   cursor:pointer;
   background:linear-gradient(135deg,#cbb3e8 0%,#b293d8 100%);
   color:#120924;border-color:#dfd0f5;
-  box-shadow:0 0 24px rgba(203,179,232,.45);
+  box-shadow:0 0 22px rgba(203,179,232,.45);
 }
-.btn-analyze.ready:hover{transform:translateY(-2px);box-shadow:0 0 32px rgba(203,179,232,.65)}
+.btn-analyze.ready:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(203,179,232,.7)}
 
-.progress-strip{
-  display:none;margin-top:16px;text-align:center;
+.progress-wrap{
+  display:none;margin-top:12px;text-align:center;
 }
 .progress-bar{
   height:4px;border-radius:2px;background:rgba(203,179,232,.15);
-  overflow:hidden;margin-bottom:8px;
+  overflow:hidden;margin-bottom:6px;
 }
 .progress-fill{
   height:100%;width:0%;
   background:linear-gradient(90deg,#cbb3e8,#38bdf8);
   border-radius:2px;transition:width .25s ease;
 }
-.progress-status{font-size:.68rem;color:#8a8ab0;letter-spacing:.3px}
+.progress-status{font-size:.65rem;color:#9494b8}
+
+/* Right Floating Stats Dock */
+.stats-dock{
+  position:fixed;top:70px;right:20px;z-index:20;width:196px;
+  display:flex;flex-direction:column;gap:9px;
+}
+.stat-card{
+  background:var(--glass);border:1px solid var(--border);border-radius:14px;
+  padding:12px 14px;backdrop-filter:blur(24px);
+}
+.sc-label{font-size:.56rem;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#7a7a96;margin-bottom:4px}
+.sc-val{font-size:1.35rem;font-weight:800;color:#f0edf7;line-height:1}
+.sc-val.c{color:var(--cerulean)}
+.sc-val.r{color:var(--tomato)}
+.sc-sub{font-size:.58rem;color:#757590;margin-top:4px}
+.legend-card{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:14px;padding:12px 14px;backdrop-filter:blur(24px);
+}
+.lc-title{font-size:.56rem;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#7a7a96;margin-bottom:8px}
+.lc-row{display:flex;align-items:center;gap:7px;font-size:.64rem;color:#8a8ab0;margin-bottom:5px}
+.lc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* Center Bottom Mode Bar */
+.mode-bar{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:25;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  background:rgba(8,8,20,0.85);border:1px solid var(--border);
+  border-radius:24px;padding:8px 18px;backdrop-filter:blur(16px);
+}
+.mode-hint{font-size:.58rem;letter-spacing:1.3px;text-transform:uppercase;color:#8888a6}
+.mode-btns{display:flex;gap:8px}
+.mode-btn{
+  padding:5px 14px;border-radius:16px;border:1px solid var(--border);
+  background:rgba(14,14,28,.8);color:#8888a6;font-size:.67rem;font-weight:600;
+  cursor:pointer;transition:all .2s;
+}
+.mode-btn.active{border-color:var(--lavender);color:var(--lavender);background:rgba(203,179,232,.14)}
+
+/* Responsive Dock Tweak */
+@media(max-width:768px){
+  body{overflow-y:auto}
+  .upload-dock{position:relative;top:64px;left:auto;width:calc(100% - 32px);margin:0 16px 16px 16px;max-height:none}
+  .stats-dock{position:relative;top:auto;right:auto;width:calc(100% - 32px);margin:0 16px 80px 16px;flex-direction:row;flex-wrap:wrap}
+  .stat-card{flex:1 1 45%}
+  .legend-card{width:100%}
+  .mode-bar{width:calc(100% - 32px)}
+}
 
 /* ════════════════════════════════════════════════════
-   STAGE 2: CENTER CLINICAL DIAGNOSTIC REPORT CONSOLE
+   AFTER ANALYZING: CENTER REPORT OVERLAY
 ════════════════════════════════════════════════════ */
-.report-console{
-  display:none;width:100%;
-  background:var(--glass);border:1px solid var(--border);
-  border-radius:24px;padding:36px;
-  backdrop-filter:blur(28px);
-  box-shadow:0 30px 80px rgba(0,0,0,0.75);
-  animation:fadeInUp .4s ease forwards;
+.center-report-overlay{
+  display:none;position:fixed;inset:0;z-index:45;
+  background:rgba(5,5,15,0.88);backdrop-filter:blur(22px);
+  overflow-y:auto;padding:72px 20px 48px;
 }
-@keyframes fadeInUp{
-  from{opacity:0;transform:translateY(16px)}
-  to{opacity:1;transform:translateY(0)}
+.center-report-overlay.active{
+  display:block;
+  animation:fadeIn .3s ease forwards;
+}
+@keyframes fadeIn{
+  from{opacity:0;transform:scale(0.985)}
+  to{opacity:1;transform:scale(1)}
 }
 
-/* Clinical Verdict Header Banner */
+.report-inner{
+  max-width:1120px;margin:0 auto;
+}
+
+/* Diagnostic Verdict Header */
 .clinic-banner{
-  border-radius:18px;padding:24px 28px;margin-bottom:28px;
-  display:flex;align-items:center;gap:24px;
+  border-radius:18px;padding:24px 28px;margin-bottom:24px;
+  display:flex;align-items:center;gap:22px;
   border:1px solid var(--border);
 }
 .clinic-banner.normal{
-  background:linear-gradient(135deg,rgba(16,40,24,.85) 0%,rgba(6,22,14,.6) 100%);
+  background:linear-gradient(135deg,rgba(16,42,24,.85) 0%,rgba(6,24,14,.6) 100%);
   border-color:rgba(52,211,153,.35);
 }
 .clinic-banner.pathology{
-  background:linear-gradient(135deg,rgba(50,14,14,.9) 0%,rgba(28,6,6,.65) 100%);
+  background:linear-gradient(135deg,rgba(52,14,14,.9) 0%,rgba(28,6,6,.65) 100%);
   border-color:rgba(248,113,113,.4);
 }
 .clinic-banner.uncertain{
@@ -180,109 +237,108 @@ nav{
 .clinic-banner.pathology .clinic-tag{background:var(--tomato-bg);color:var(--tomato)}
 .clinic-banner.uncertain .clinic-tag{background:var(--amber-bg);color:var(--amber)}
 
-.clinic-verdict{font-size:1.65rem;font-weight:900;line-height:1.2;margin-bottom:6px}
+.clinic-verdict{font-size:1.6rem;font-weight:900;line-height:1.2;margin-bottom:6px}
 .clinic-banner.normal .clinic-verdict{color:var(--chartreuse)}
 .clinic-banner.pathology .clinic-verdict{color:var(--tomato)}
 .clinic-banner.uncertain .clinic-verdict{color:var(--amber)}
-.clinic-action-note{font-size:.85rem;color:#b0aecd;line-height:1.5}
+.clinic-action-note{font-size:.85rem;color:#b6b4d4;line-height:1.5}
 
 .clinic-stat{margin-left:auto;text-align:right;flex-shrink:0}
-.clinic-prob{font-size:2.6rem;font-weight:900;line-height:1}
+.clinic-prob{font-size:2.5rem;font-weight:900;line-height:1}
 .clinic-banner.normal .clinic-prob{color:var(--chartreuse)}
 .clinic-banner.pathology .clinic-prob{color:var(--tomato)}
 .clinic-banner.uncertain .clinic-prob{color:var(--amber)}
-.clinic-prob-lbl{font-size:.65rem;color:#7a7a98;letter-spacing:1.2px;text-transform:uppercase;margin-top:4px}
-.clinic-thresh-lbl{font-size:.68rem;color:#999;margin-top:4px}
+.clinic-prob-lbl{font-size:.64rem;color:#8888a6;letter-spacing:1.2px;text-transform:uppercase;margin-top:4px}
+.clinic-thresh-lbl{font-size:.66rem;color:#aaa;margin-top:4px}
 
-/* ── CENTER LARGE DUAL RADIOGRAPH VIEWPORT ── */
+/* Center Dual Radiographs — Large Views */
 .center-viewers{
-  display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px;
+  display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:24px;
 }
 @media(max-width:768px){.center-viewers{grid-template-columns:1fr;}}
 
 .viewer-card{
-  background:rgba(8,8,20,0.7);border:1px solid var(--border);
+  background:rgba(10,10,24,0.75);border:1px solid var(--border);
   border-radius:16px;overflow:hidden;
   display:flex;flex-direction:column;
 }
 .viewer-header{
-  padding:12px 18px;border-bottom:1px solid var(--border);
-  background:rgba(203,179,232,0.04);
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  background:rgba(203,179,232,0.05);
   display:flex;justify-content:space-between;align-items:center;
 }
 .vh-title{font-size:.74rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--lavender)}
 .vh-badge{
-  font-size:.62rem;padding:3px 9px;border-radius:10px;
-  background:rgba(203,179,232,.1);border:1px solid var(--border);color:#aaa;
+  font-size:.62rem;padding:3px 8px;border-radius:10px;
+  background:rgba(203,179,232,.1);border:1px solid var(--border);color:#bbb;
 }
-
 .viewer-body{
-  padding:18px;min-height:360px;
+  padding:16px;min-height:360px;
   display:flex;align-items:center;justify-content:center;
-  background:#020208;position:relative;
+  background:#020206;
 }
 .viewer-body img{
   max-width:100%;max-height:420px;
   border-radius:8px;object-fit:contain;display:block;
-  box-shadow:0 8px 30px rgba(0,0,0,0.8);
+  box-shadow:0 8px 30px rgba(0,0,0,0.85);
 }
 .saliency-legend{
-  padding:8px 18px;background:rgba(203,179,232,.03);border-top:1px solid var(--border);
+  padding:8px 16px;background:rgba(203,179,232,.03);border-top:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;
   font-size:.64rem;color:#8a8ab0;
 }
 .legend-bar{
-  height:7px;width:140px;border-radius:4px;
+  height:7px;width:130px;border-radius:4px;
   background:linear-gradient(90deg,#0000ff,#00ffff,#00ff00,#ffff00,#ff0000);
 }
 
-/* ── CENTER CLINICAL METRICS GRID ── */
+/* Center Metrics Grid */
 .metrics-grid{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;
 }
 @media(max-width:768px){.metrics-grid{grid-template-columns:repeat(2,1fr);}}
 
 .metric-box{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:14px;padding:16px 18px;
+  border-radius:14px;padding:16px;
 }
-.m-label{font-size:.6rem;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#777;margin-bottom:6px}
-.m-val{font-size:1.6rem;font-weight:800;line-height:1}
+.m-label{font-size:.58rem;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#7a7a98;margin-bottom:6px}
+.m-val{font-size:1.55rem;font-weight:800;line-height:1}
 .m-val.g{color:var(--chartreuse)}
 .m-val.r{color:var(--tomato)}
 .m-val.b{color:var(--cerulean)}
 .m-val.a{color:var(--amber)}
-.m-sub{font-size:.64rem;color:#8a8ab0;margin-top:6px}
+.m-sub{font-size:.62rem;color:#8a8ab0;margin-top:6px}
 
-/* ── RECOMMENDATIONS & TRIAGE SECTION ── */
+/* Recommendations */
 .decision-box{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:16px;padding:22px 26px;margin-bottom:28px;
+  border-radius:16px;padding:20px 24px;margin-bottom:26px;
 }
-.db-title{font-size:.65rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#888;margin-bottom:10px}
-.db-action{font-size:1rem;color:#f0eefa;line-height:1.6;font-weight:500}
+.db-title{font-size:.64rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#888;margin-bottom:8px}
+.db-action{font-size:.95rem;color:#f0eefa;line-height:1.6;font-weight:500}
 .db-triage{
-  margin-top:12px;padding:10px 16px;border-radius:10px;font-size:.78rem;font-weight:700;
+  margin-top:12px;padding:10px 14px;border-radius:10px;font-size:.76rem;font-weight:700;
   color:#dfdaf2;background:rgba(203,179,232,0.06);border:1px solid rgba(203,179,232,0.15);
   display:flex;align-items:center;gap:8px;
 }
 
-/* ── CENTER ACTION BUTTON BAR ── */
+/* Center Bottom Action Bar */
 .center-actions{
   display:flex;justify-content:center;gap:16px;flex-wrap:wrap;
 }
 .btn-primary-reset{
-  padding:15px 36px;border-radius:14px;font-size:.9rem;font-weight:800;
-  letter-spacing:.6px;cursor:pointer;border:none;transition:all .22s ease;
+  padding:14px 34px;border-radius:14px;font-size:.88rem;font-weight:800;
+  letter-spacing:.5px;cursor:pointer;border:none;transition:all .22s ease;
   background:linear-gradient(135deg,#cbb3e8 0%,#b293d8 100%);
-  color:#120924;box-shadow:0 0 28px rgba(203,179,232,.45);
-  display:flex;align-items:center;gap:10px;
+  color:#120924;box-shadow:0 0 26px rgba(203,179,232,.45);
+  display:flex;align-items:center;gap:8px;
 }
-.btn-primary-reset:hover{transform:translateY(-2px);box-shadow:0 0 38px rgba(203,179,232,.75)}
+.btn-primary-reset:hover{transform:translateY(-2px);box-shadow:0 0 36px rgba(203,179,232,.75)}
 
 .btn-secondary-print{
-  padding:15px 30px;border-radius:14px;font-size:.85rem;font-weight:700;
-  letter-spacing:.6px;cursor:pointer;transition:all .22s ease;
+  padding:14px 28px;border-radius:14px;font-size:.84rem;font-weight:700;
+  letter-spacing:.5px;cursor:pointer;transition:all .22s ease;
   background:rgba(203,179,232,.08);border:1px solid var(--border);
   color:#cfcbe8;display:flex;align-items:center;gap:8px;
 }
@@ -291,9 +347,10 @@ nav{
 </head>
 <body>
 
+<!-- 3D Interactive Knee Model (Centered & Completely Visible at Start) -->
 <canvas id="gl"></canvas>
 
-<!-- Navigation -->
+<!-- Top Navigation -->
 <nav>
   <div class="nav-brand">
     <div class="nav-logo">Ortho<span>Scan</span> AI</div>
@@ -305,47 +362,89 @@ nav{
   </div>
 </nav>
 
-<!-- Main Stage (Centered Layout) -->
-<div class="main-stage">
+<!-- STARTING STATE: Floating Left Upload Dock (Leaves center 3D model unobstructed) -->
+<div class="upload-dock" id="upload-dock">
+  <div class="dock-title">
+    <span>🦴</span>
+    <span>Radiograph Intake</span>
+  </div>
+  <div class="dock-hint">
+    Rotate and inspect the 3D joint in the center, or upload a frontal (AP) knee X-ray for diagnostic analysis.
+  </div>
 
-  <!-- ═══════ STAGE 1: INTAKE & UPLOAD (Centered Initial State) ═══════ -->
-  <div class="intake-card" id="intake-card">
-    <div class="intake-header">
-      <div class="intake-title">Patient Knee Radiograph Analysis</div>
-      <div class="intake-desc">Upload a digital frontal (AP) knee X-ray for deep learning osteoporosis detection, calibrated joint space analysis, and explainable Grad-CAM heatmaps.</div>
+  <input type="file" id="file-inp" accept="image/*" style="display:none;"/>
+
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-icon">📂</div>
+    <div class="drop-title">Drop Knee X-ray or Click</div>
+    <div class="drop-desc">PNG, JPEG, WebP · Max 20 MB</div>
+  </div>
+
+  <div class="preview-box" id="preview-box">
+    <div class="preview-img-wrap">
+      <img id="preview-img" alt="Selected Radiograph"/>
+      <button type="button" class="change-btn" id="change-btn">Change</button>
     </div>
-
-    <input type="file" id="file-inp" accept="image/*" style="display:none;"/>
-
-    <div class="drop-zone" id="drop-zone">
-      <div class="drop-icon">🦴</div>
-      <div class="drop-main-text">Drag &amp; drop knee X-ray or click to browse</div>
-      <div class="drop-sub-text">Accepts PNG, JPEG, WebP · Max 20 MB · Frontal AP view</div>
-    </div>
-
-    <!-- Selected image preview inside intake card -->
-    <div class="intake-preview" id="intake-preview">
-      <div class="intake-img-wrap">
-        <img id="intake-img" alt="Selected Radiograph"/>
-        <button type="button" class="intake-change-btn" id="intake-change-btn">Change Image</button>
-      </div>
-      <div class="intake-meta">
-        <div class="intake-fname" id="intake-fname">—</div>
-        <div class="intake-fsize" id="intake-fsize">—</div>
-      </div>
-    </div>
-
-    <button class="btn-analyze" id="btn-analyze" disabled>Select Knee X-ray</button>
-
-    <div class="progress-strip" id="progress-strip">
-      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-      <div class="progress-status" id="progress-status">Preprocessing radiograph…</div>
+    <div class="file-meta-row">
+      <div class="file-meta-name" id="file-meta-name">—</div>
+      <div class="file-meta-size" id="file-meta-size">—</div>
     </div>
   </div>
 
+  <button class="btn-analyze" id="btn-analyze" disabled>Select Knee X-ray</button>
 
-  <!-- ═══════ STAGE 2: CLINICAL DIAGNOSTIC REPORT (Centered Once Analyzed) ═══════ -->
-  <div class="report-console" id="report-console">
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-status" id="progress-status">Preprocessing radiograph…</div>
+  </div>
+</div>
+
+<!-- STARTING STATE: Floating Right Anatomical Stats Dock -->
+<div class="stats-dock" id="stats-dock">
+  <div class="stat-card">
+    <div class="sc-label">Joint Space (JSN)</div>
+    <div class="sc-val c" id="sp-jsn">4.8 mm</div>
+    <div class="sc-sub">Tibiofemoral clearance</div>
+  </div>
+  <div class="stat-card">
+    <div class="sc-label">Subchondral BMD</div>
+    <div class="sc-val c" id="sp-bmd">1.24</div>
+    <div class="sc-sub">g/cm² (Femoral / Tibial)</div>
+  </div>
+  <div class="stat-card">
+    <div class="sc-label">WHO T-Score</div>
+    <div class="sc-val" id="sp-tscore">+0.8</div>
+    <div class="sc-sub">Normal: ≥ −1.0 SD</div>
+  </div>
+  <div class="stat-card">
+    <div class="sc-label">Trabecular Porosity</div>
+    <div class="sc-val r" id="sp-poros">12%</div>
+    <div class="sc-sub">≤20% = normal</div>
+  </div>
+  <div class="legend-card">
+    <div class="lc-title">Tissue Legend</div>
+    <div class="lc-row"><span class="lc-dot" style="background:#f0e0b8"></span>Cortical bone</div>
+    <div class="lc-row"><span class="lc-dot" style="background:#55ceec"></span>Articular cartilage</div>
+    <div class="lc-row"><span class="lc-dot" style="background:#ff2d95"></span>Subchondral erosion</div>
+  </div>
+</div>
+
+<!-- STARTING STATE: Bottom Mode Bar for 3D Joint Exploration -->
+<div class="mode-bar" id="mode-bar">
+  <div class="mode-hint">Drag 3D model to rotate · Scroll to zoom</div>
+  <div class="mode-btns">
+    <button class="mode-btn active" data-mode="0">● Healthy</button>
+    <button class="mode-btn" data-mode="1">● Degrading</button>
+    <button class="mode-btn" data-mode="2">● Osteoporotic</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+   AFTER ANALYZING: CENTER REPORT OVERLAY
+   (Images, Grad-CAM, & Full Diagnosis Appear at Center)
+════════════════════════════════════════════════════ -->
+<div class="center-report-overlay" id="center-report-overlay">
+  <div class="report-inner">
 
     <!-- Top Clinical Verdict Banner -->
     <div class="clinic-banner" id="clinic-banner">
@@ -362,9 +461,8 @@ nav{
       </div>
     </div>
 
-    <!-- CENTER DUAL RADIOGRAPH VIEWERS: BIG ORIGINAL & BIG GRAD-CAM -->
+    <!-- CENTER DUAL RADIOGRAPHS: BIG ORIGINAL & BIG GRAD-CAM -->
     <div class="center-viewers">
-      <!-- Original Radiograph Card -->
       <div class="viewer-card">
         <div class="viewer-header">
           <span class="vh-title">Original Digital Radiograph</span>
@@ -375,7 +473,6 @@ nav{
         </div>
       </div>
 
-      <!-- Explainable Grad-CAM Heatmap Card -->
       <div class="viewer-card">
         <div class="viewer-header">
           <span class="vh-title">Explainable Saliency Overlay (Grad-CAM)</span>
@@ -416,7 +513,7 @@ nav{
       </div>
     </div>
 
-    <!-- Recommendations & Clinical Triage -->
+    <!-- Recommendations & Triage -->
     <div class="decision-box">
       <div class="db-title">Clinical Diagnostic Recommendation</div>
       <div class="db-action" id="decision-action">—</div>
@@ -425,9 +522,9 @@ nav{
 
     <!-- Centered Action Buttons -->
     <div class="center-actions">
-      <button class="btn-primary-reset" id="btn-analyze-another">
+      <button class="btn-primary-reset" id="btn-back-3d">
         <span>🩻</span>
-        <span>Upload &amp; Analyze Another Radiograph</span>
+        <span>Back to 3D Model / Analyze Another</span>
       </button>
       <button class="btn-secondary-print" id="btn-print-report" onclick="window.print()">
         <span>🖨️</span>
@@ -436,7 +533,6 @@ nav{
     </div>
 
   </div>
-
 </div>
 
 {% raw %}
@@ -661,16 +757,28 @@ let applyMode3D = function(i){};
 
   let yaw=0.42, pitch=-0.10, zoom=5.8;
   let drag=false, lx=0, ly=0;
-  window.addEventListener('mousedown',e=>{if(e.target===canvas){drag=true;lx=e.clientX;ly=e.clientY;}});
+  canvas.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
   window.addEventListener('mousemove',e=>{if(!drag)return;yaw+=(e.clientX-lx)*0.008;pitch+=(e.clientY-ly)*0.006;pitch=Math.max(-1.2,Math.min(1.2,pitch));lx=e.clientX;ly=e.clientY;});
   window.addEventListener('mouseup',()=>drag=false);
+  canvas.addEventListener('wheel',e=>{zoom+=e.deltaY*0.005;zoom=Math.max(2.5,Math.min(9.5,zoom));e.preventDefault();},{passive:false});
 
+  const MODES=[
+    {pathology:0.00,collapse:0.00,jsn:'4.8 mm',bmd:'1.24',ts:'+0.8',po:'12%',jc:'c',bc:'c',tc:'',pc:'r'},
+    {pathology:0.48,collapse:0.55,jsn:'2.9 mm',bmd:'0.91',ts:'−1.4',po:'38%',jc:'',bc:'',tc:'',pc:'r'},
+    {pathology:0.94,collapse:0.98,jsn:'1.1 mm',bmd:'0.63',ts:'−2.9',po:'73%',jc:'r',bc:'r',tc:'r',pc:'r'},
+  ];
   let tPath=0, tCol=0, curPath=0, curCol=0;
+
   applyMode3D = function(i){
-    if(i===2){ tPath=0.94; tCol=0.98; }
-    else if(i===1){ tPath=0.48; tCol=0.55; }
-    else { tPath=0.0; tCol=0.0; }
+    document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.classList.toggle('active',+b.dataset.mode===i));
+    const m=MODES[i];
+    tPath=m.pathology;
+    tCol=m.collapse;
+    hud('sp-jsn',m.jsn,m.jc);hud('sp-bmd',m.bmd,m.bc);hud('sp-tscore',m.ts,m.tc);hud('sp-poros',m.po,m.pc);
   };
+
+  function hud(id,val,cls){const el=document.getElementById(id);if(el){el.textContent=val;el.className='sc-val '+(cls||'');}}
+  document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.addEventListener('click',()=>applyMode3D(+b.dataset.mode)));
 
   let first=true;
   function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;gl.viewport(0,0,canvas.width,canvas.height);}
@@ -708,22 +816,21 @@ let applyMode3D = function(i){};
 (function initDiagnosticWorkstation(){
   "use strict";
 
-  // Intake Elements
-  const intakeCard    = document.getElementById('intake-card');
+  // Left Upload Dock Elements
   const dropZone      = document.getElementById('drop-zone');
   const fileInp       = document.getElementById('file-inp');
-  const intakePreview = document.getElementById('intake-preview');
-  const intakeImg     = document.getElementById('intake-img');
-  const intakeChange  = document.getElementById('intake-change-btn');
-  const intakeFname   = document.getElementById('intake-fname');
-  const intakeFsize   = document.getElementById('intake-fsize');
+  const previewBox    = document.getElementById('preview-box');
+  const previewImg    = document.getElementById('preview-img');
+  const changeBtn     = document.getElementById('change-btn');
+  const metaName      = document.getElementById('file-meta-name');
+  const metaSize      = document.getElementById('file-meta-size');
   const btnAnalyze    = document.getElementById('btn-analyze');
-  const progStrip     = document.getElementById('progress-strip');
+  const progWrap      = document.getElementById('progress-wrap');
   const progFill      = document.getElementById('progress-fill');
   const progStatus    = document.getElementById('progress-status');
 
-  // Report Elements
-  const reportConsole = document.getElementById('report-console');
+  // Center Overlay Elements
+  const centerReport  = document.getElementById('center-report-overlay');
   const clinicBanner  = document.getElementById('clinic-banner');
   const clinicIcon    = document.getElementById('clinic-icon');
   const clinicTag     = document.getElementById('clinic-tag');
@@ -739,14 +846,14 @@ let applyMode3D = function(i){};
   const metricUnc     = document.getElementById('metric-unc');
   const decisionAction= document.getElementById('decision-action');
   const decisionTriage= document.getElementById('decision-triage');
-  const btnReset      = document.getElementById('btn-analyze-another');
+  const btnBack3D     = document.getElementById('btn-back-3d');
 
   let selectedFile = null;
   let selectedFileUrl = null;
 
   function setProgress(pct, status){
-    if(!progStrip) return;
-    progStrip.style.display = 'block';
+    if(!progWrap) return;
+    progWrap.style.display = 'block';
     progFill.style.width = pct + '%';
     progStatus.textContent = status;
   }
@@ -763,37 +870,34 @@ let applyMode3D = function(i){};
     selectedFile = file;
     selectedFileUrl = URL.createObjectURL(file);
 
-    intakeImg.src = selectedFileUrl;
-    intakeFname.textContent = file.name;
-    intakeFsize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+    previewImg.src = selectedFileUrl;
+    metaName.textContent = file.name;
+    metaSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
 
     dropZone.style.display = 'none';
-    intakePreview.style.display = 'block';
+    previewBox.style.display = 'block';
 
     btnAnalyze.disabled = false;
     btnAnalyze.classList.add('ready');
-    btnAnalyze.innerHTML = '⚡ Run AI Diagnostic Analysis';
+    btnAnalyze.innerHTML = '⚡ Analyze Radiograph';
   }
 
-  function resetWorkstation(){
+  function resetTo3DView(){
+    centerReport.classList.remove('active');
     selectedFile = null;
     if(fileInp) fileInp.value = '';
 
-    intakePreview.style.display = 'none';
+    previewBox.style.display = 'none';
     dropZone.style.display = 'block';
     btnAnalyze.disabled = true;
     btnAnalyze.classList.remove('ready');
     btnAnalyze.innerHTML = 'Select Knee X-ray';
-    progStrip.style.display = 'none';
-
-    reportConsole.style.display = 'none';
-    intakeCard.style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    progWrap.style.display = 'none';
   }
 
-  // Drag & drop handlers
+  // File drop & select listeners
   dropZone.addEventListener('click', () => { fileInp.value = ''; fileInp.click(); });
-  intakeChange.addEventListener('click', () => { fileInp.value = ''; fileInp.click(); });
+  changeBtn.addEventListener('click', () => { fileInp.value = ''; fileInp.click(); });
   fileInp.addEventListener('change', () => {
     if(fileInp.files && fileInp.files[0]) handleFileSelection(fileInp.files[0]);
   });
@@ -814,9 +918,9 @@ let applyMode3D = function(i){};
     btnAnalyze.classList.remove('ready');
     btnAnalyze.innerHTML = '⏳ Analyzing Radiograph…';
 
-    setProgress(20, 'Orienting radiograph & extracting joint ROI…');
-    setTimeout(() => setProgress(55, 'Executing DenseNet-121 ONNX forward pass…'), 400);
-    setTimeout(() => setProgress(80, 'Generating explainable Grad-CAM saliency map…'), 1200);
+    setProgress(25, 'Preprocessing & joint ROI cropping…');
+    setTimeout(() => setProgress(60, 'DenseNet-121 ONNX inference…'), 300);
+    setTimeout(() => setProgress(85, 'Generating Grad-CAM saliency…'), 900);
 
     const fd = new FormData();
     fd.append('file', selectedFile);
@@ -830,21 +934,21 @@ let applyMode3D = function(i){};
       } catch (jsonErr) {
         throw new Error(
           resp.status === 502 || resp.status === 504
-            ? `Server is waking up from idle state (${resp.status}). Please wait 10 seconds and try again.`
+            ? `Server waking up (${resp.status}). Please wait 10 seconds and re-analyze.`
             : `Server returned HTTP ${resp.status}: ${respText.slice(0, 100)}`
         );
       }
-      setProgress(100, 'Diagnostic analysis complete.');
+      setProgress(100, 'Analysis complete.');
 
       if(!resp.ok || data.error || data.detail){
         alert('Diagnostic Error: ' + (data.detail || data.error || 'Server error occurred.'));
         btnAnalyze.disabled = false;
         btnAnalyze.classList.add('ready');
-        btnAnalyze.innerHTML = '⚡ Run AI Diagnostic Analysis';
+        btnAnalyze.innerHTML = '⚡ Analyze Radiograph';
         return;
       }
 
-      // Populate Report
+      // Populate Report Data
       const isPath = Boolean(
         data.pathology_detected ||
         (data.prediction && (
@@ -865,7 +969,7 @@ let applyMode3D = function(i){};
       clinicProb.textContent = probVal;
       clinicThresh.textContent = data.threshold_used !== undefined ? `Decision Threshold: ${data.threshold_used}` : 'Threshold: 0.6930';
 
-      // Load Images
+      // Load Images into the Center Viewers
       viewOrig.src = selectedFileUrl;
       if(data.gradcam_png){
         viewGradcam.src = 'data:image/png;base64,' + data.gradcam_png;
@@ -873,7 +977,7 @@ let applyMode3D = function(i){};
         viewGradcam.src = selectedFileUrl;
       }
 
-      // Metrics
+      // Populate Metrics
       metricConf.textContent = ((data.confidence || 0) * 100).toFixed(1) + '%';
       metricConf.className   = 'm-val ' + (isPath ? 'r' : 'g');
       metricLogit.textContent= data.raw_logit !== undefined ? data.raw_logit.toFixed(3) : '—';
@@ -881,30 +985,34 @@ let applyMode3D = function(i){};
       metricUnc.textContent  = isUnc ? 'YES (Flagged)' : 'NO (Clear)';
       metricUnc.className    = 'm-val ' + (isUnc ? 'a' : 'g');
 
-      // Decisions
+      // Populate Decision
       decisionAction.textContent = data.clinical_action || 'No critical intervention required.';
       decisionTriage.innerHTML   = '<span>📋 Clinical Triage Urgency:</span> <b>' + (data.clinical_triage || 'Routine Assessment') + '</b>';
 
-      // Update 3D model
+      // Update 3D Background Model to reflect state
       applyMode3D(isPath ? 2 : 0);
 
-      // Hide Intake, Show Center Report
-      intakeCard.style.display = 'none';
-      reportConsole.style.display = 'block';
-
-      // Smooth scroll to top of report
-      reportConsole.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // OPEN CENTER REPORT (Images and prediction details come to the exact center!)
+      centerReport.classList.add('active');
+      centerReport.scrollTop = 0;
 
     } catch(err){
-      alert('Network or Server Connection Error: ' + err.message);
+      alert('Diagnostic Request Failed: ' + err.message);
       btnAnalyze.disabled = false;
       btnAnalyze.classList.add('ready');
-      btnAnalyze.innerHTML = '⚡ Run AI Diagnostic Analysis';
+      btnAnalyze.innerHTML = '⚡ Analyze Radiograph';
     }
   });
 
-  // Reset button
-  btnReset.addEventListener('click', resetWorkstation);
+  // Back to 3D View button
+  btnBack3D.addEventListener('click', resetTo3DView);
+
+  // Close on Escape
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && centerReport.classList.contains('active')){
+      centerReport.classList.remove('active');
+    }
+  });
 
 })();
 </script>
