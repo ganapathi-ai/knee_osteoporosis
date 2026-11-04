@@ -7,10 +7,13 @@ Model: exports_model/ortho_knee_densenet121.onnx
 import os
 import io
 import json
+import base64
 import random
 import hashlib
 import logging
+import numpy as np
 from pathlib import Path
+from PIL import Image
 
 from fastapi import FastAPI, File, UploadFile, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -67,6 +70,102 @@ app = FastAPI(
 )
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+# ---------------------------------------------------------------------------
+# Grad-CAM approximation via occlusion sensitivity (ONNX-compatible)
+# ---------------------------------------------------------------------------
+def _sigmoid(x: float) -> float:
+    if x >= 0:
+        return 1.0 / (1.0 + np.exp(-x))
+    return np.exp(x) / (1.0 + np.exp(x))
+
+
+def compute_gradcam_heatmap(image_bytes: bytes, predictor_obj) -> str:
+    """
+    Occlusion-sensitivity saliency map — works with any ONNX model.
+    Patches 16×16 blocks with the image mean, records score drop,
+    then renders a JET colour heatmap blended over the original image.
+    Returns a base64-encoded PNG string.
+    """
+    # Pre-process exactly as the predictor does
+    tensor = predictor_obj.preprocess(image_bytes)   # (1, 3, 224, 224) float32
+    h, w   = tensor.shape[2], tensor.shape[3]
+
+    # Baseline prediction
+    out0       = predictor_obj.session.run(
+        [predictor_obj.output_name], {predictor_obj.input_name: tensor}
+    )
+    base_prob  = _sigmoid(float(out0[0][0]))
+
+    # Occlusion grid  (patch_size=16, stride=16 → 14×14=196 patches)
+    patch = 16
+    rows, cols = h // patch, w // patch
+    sal = np.zeros((rows, cols), dtype=np.float32)
+    mean_val = tensor.mean()
+
+    for r in range(rows):
+        for c in range(cols):
+            t2 = tensor.copy()
+            t2[0, :, r*patch:(r+1)*patch, c*patch:(c+1)*patch] = mean_val
+            out = predictor_obj.session.run(
+                [predictor_obj.output_name], {predictor_obj.input_name: t2}
+            )
+            sal[r, c] = base_prob - _sigmoid(float(out[0][0]))
+
+    # Clip negative drops (irrelevant patches), normalise to [0,1]
+    sal = np.clip(sal, 0, None)
+    if sal.max() > 1e-6:
+        sal = sal / sal.max()
+
+    # Upsample to 224×224 with bilinear interpolation using PIL
+    sal_pil = Image.fromarray((sal * 255).astype(np.uint8), mode='L')
+    sal_up  = sal_pil.resize((w, h), Image.Resampling.BILINEAR)
+    sal_arr = np.array(sal_up, dtype=np.float32) / 255.0  # (224,224)
+
+    # JET colourmap: blue→cyan→green→yellow→red
+    def jet(v):
+        r = np.clip(1.5 - abs(4*v - 3),     0, 1)
+        g = np.clip(1.5 - abs(4*v - 2),     0, 1)
+        b = np.clip(1.5 - abs(4*v - 1),     0, 1)
+        return r, g, b
+
+    r, g, b   = jet(sal_arr)
+    jet_rgb   = np.stack([r, g, b], axis=-1)              # (224,224,3) float [0,1]
+    jet_uint8 = (jet_rgb * 255).astype(np.uint8)
+
+    # Load original image, resize to 224×224
+    orig_pil  = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    orig_pil  = orig_pil.resize((w, h), Image.Resampling.BILINEAR)
+    orig_arr  = np.array(orig_pil, dtype=np.float32)
+
+    # Blend: 50% original + 50% heatmap (alpha = saliency)
+    alpha    = sal_arr[:, :, np.newaxis]                   # (224,224,1)
+    blended  = (orig_arr * (1 - 0.65 * alpha) + jet_uint8 * 0.65 * alpha)
+    blended  = np.clip(blended, 0, 255).astype(np.uint8)
+
+    # Encode to base64 PNG
+    buf = io.BytesIO()
+    Image.fromarray(blended).save(buf, format='PNG', optimize=True)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+
+def _mock_gradcam(image_bytes: bytes) -> str:
+    """Demo-mode: return a simple gradient heatmap on the original image."""
+    orig = Image.open(io.BytesIO(image_bytes)).convert('RGB').resize((224, 224))
+    arr  = np.array(orig, dtype=np.float32)
+    # Fake elliptical hotspot in the centre
+    yy, xx = np.mgrid[0:224, 0:224]
+    sal = np.exp(-((xx - 112)**2 / (60**2) + (yy - 112)**2 / (40**2)))
+    r  = np.clip(1.5 - abs(4*sal - 3), 0, 1)
+    g  = np.clip(1.5 - abs(4*sal - 2), 0, 1)
+    b  = np.clip(1.5 - abs(4*sal - 1), 0, 1)
+    jet = np.stack([r, g, b], axis=-1) * 255
+    alpha = sal[:, :, np.newaxis]
+    blended = np.clip(arr * (1 - 0.65*alpha) + jet * 0.65*alpha, 0, 255).astype(np.uint8)
+    buf = io.BytesIO()
+    Image.fromarray(blended).save(buf, format='PNG', optimize=True)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
 
 
 # ---------------------------------------------------------------------------
@@ -149,9 +248,13 @@ async def predict(file: UploadFile = File(...)):
     try:
         if DEMO_MODE or predictor is None:
             result = _mock_predict(image_bytes)
+            gradcam_b64 = _mock_gradcam(image_bytes)
         else:
             result = predictor.predict(image_bytes)
             result["demo_mode"] = False
+            gradcam_b64 = compute_gradcam_heatmap(image_bytes, predictor)
+
+        result["gradcam_png"] = gradcam_b64
         return JSONResponse(content=result)
     except Exception as exc:
         logger.exception("Inference failed: %s", exc)

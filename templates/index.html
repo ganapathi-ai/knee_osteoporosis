@@ -9,16 +9,16 @@
 :root{
   --lavender:#cbb3e8;--chartreuse:#d4ff3f;--tomato:#e34234;
   --jet:#0a0a0a;--cerulean:#007ba7;--rose:#ff2d95;
-  --glass:rgba(8,8,18,0.85);--border:rgba(203,179,232,0.18);
+  --glass:rgba(8,8,18,0.88);--border:rgba(203,179,232,0.18);
 }
 html,body{width:100%;height:100%;overflow:hidden;background:#060610;
   font-family:'Segoe UI',system-ui,sans-serif;color:#e8e4f0}
 canvas#gl{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
 
 /* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:10;
+nav{position:fixed;top:0;left:0;right:0;z-index:30;
   display:flex;align-items:center;padding:0 24px;height:52px;
-  background:rgba(6,6,20,0.92);border-bottom:1px solid var(--border);
+  background:rgba(6,6,20,0.95);border-bottom:1px solid var(--border);
   backdrop-filter:blur(16px)}
 .nav-logo{font-size:1.05rem;font-weight:700;letter-spacing:.4px;color:#fff}
 .nav-logo span{color:var(--lavender)}
@@ -91,17 +91,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
 .analyze-btn.ready{
   cursor:pointer;
   background:linear-gradient(135deg,#cbb3e8 0%,#b293d8 100%);
-  color:#120924;
-  border:1px solid #dfd0f5;
-  box-shadow:0 0 20px rgba(203,179,232,.5);
-  font-weight:800;
+  color:#120924;border:1px solid #dfd0f5;
+  box-shadow:0 0 20px rgba(203,179,232,.5);font-weight:800;
 }
-.analyze-btn.ready:hover{
-  transform:translateY(-1px);
-  box-shadow:0 0 26px rgba(203,179,232,.75);
-}
+.analyze-btn.ready:hover{transform:translateY(-1px);box-shadow:0 0 26px rgba(203,179,232,.75);}
 
-/* Results */
+/* Quick result badge in sidebar */
 .result-box{
   margin-top:12px;padding:12px;border-radius:10px;display:none;
   border:1px solid var(--border);background:rgba(6,6,18,.75);
@@ -116,6 +111,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
   margin-top:8px;padding:6px 8px;border-radius:6px;font-size:.64rem;
   background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#bbb;
 }
+.view-full-btn{
+  width:100%;margin-top:10px;padding:9px 14px;border-radius:8px;
+  border:1px solid rgba(203,179,232,.4);background:rgba(203,179,232,.12);
+  color:var(--lavender);font-size:.75rem;font-weight:700;cursor:pointer;
+  letter-spacing:.5px;transition:all .2s;
+}
+.view-full-btn:hover{background:rgba(203,179,232,.22);border-color:var(--lavender);}
 
 /* STATS PANEL */
 .stats-panel{position:fixed;top:64px;right:20px;z-index:20;
@@ -149,6 +151,143 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
 .mode-btn.active{border-color:var(--lavender);color:var(--lavender);
   background:rgba(203,179,232,.12)}
 .disclaimer{font-size:.56rem;color:#3a3a50;letter-spacing:.4px}
+
+/* ═══════════════════════════════════════════════════
+   RESULTS MODAL — full screen overlay
+════════════════════════════════════════════════════ */
+.results-modal{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(4,4,14,0.92);backdrop-filter:blur(18px);
+  overflow-y:auto;padding:68px 20px 40px;
+}
+.results-modal.open{display:block;}
+
+.modal-inner{
+  max-width:1100px;margin:0 auto;
+}
+
+/* verdict banner */
+.verdict-banner{
+  border-radius:16px;padding:28px 32px;margin-bottom:28px;
+  display:flex;align-items:center;gap:24px;
+  border:1px solid var(--border);
+}
+.verdict-banner.normal{
+  background:linear-gradient(135deg,rgba(0,20,0,.7) 0%,rgba(0,40,0,.4) 100%);
+  border-color:rgba(100,220,100,.25);
+}
+.verdict-banner.pathology{
+  background:linear-gradient(135deg,rgba(40,0,0,.7) 0%,rgba(80,10,0,.4) 100%);
+  border-color:rgba(220,80,60,.25);
+}
+.verdict-banner.uncertain{
+  background:linear-gradient(135deg,rgba(30,20,0,.7) 0%,rgba(60,40,0,.4) 100%);
+  border-color:rgba(220,180,0,.25);
+}
+.verdict-icon{font-size:3rem;line-height:1}
+.verdict-text{}
+.verdict-title{font-size:1.6rem;font-weight:800;line-height:1.15;margin-bottom:6px}
+.verdict-title.normal{color:var(--chartreuse)}
+.verdict-title.pathology{color:var(--tomato)}
+.verdict-title.uncertain{color:#f5c518}
+.verdict-sub{font-size:.82rem;color:#999;line-height:1.5}
+.verdict-meta{
+  margin-left:auto;text-align:right;flex-shrink:0;
+}
+.vm-prob{font-size:2.4rem;font-weight:900;line-height:1}
+.vm-label{font-size:.62rem;color:#666;letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+.vm-thresh{font-size:.64rem;color:#555;margin-top:5px}
+
+/* image grid */
+.img-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;
+}
+@media(max-width:680px){.img-grid{grid-template-columns:1fr;}}
+
+.img-card{
+  background:rgba(8,8,22,.7);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;
+}
+.img-card-head{
+  padding:10px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.img-card-title{font-size:.7rem;font-weight:700;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--lavender);}
+.img-card-badge{font-size:.6rem;padding:2px 8px;border-radius:10px;
+  background:rgba(203,179,232,.1);border:1px solid var(--border);color:#888;}
+.img-body{
+  padding:16px;display:flex;align-items:center;justify-content:center;
+  min-height:260px;background:rgba(2,2,10,.6);
+}
+.img-body img{
+  max-width:100%;max-height:380px;border-radius:8px;
+  object-fit:contain;display:block;
+}
+
+/* metrics strip */
+.metrics-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;
+}
+@media(max-width:680px){.metrics-strip{grid-template-columns:repeat(2,1fr);}}
+
+.metric-card{
+  background:rgba(8,8,22,.7);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;
+}
+.mc-label{font-size:.57rem;font-weight:700;letter-spacing:1.3px;
+  text-transform:uppercase;color:#555;margin-bottom:5px}
+.mc-val{font-size:1.5rem;font-weight:800;line-height:1}
+.mc-val.green{color:var(--chartreuse)}
+.mc-val.red{color:var(--tomato)}
+.mc-val.blue{color:var(--cerulean)}
+.mc-val.gold{color:#f5c518}
+.mc-sub{font-size:.6rem;color:#444;margin-top:4px}
+
+/* clinical action */
+.clinical-box{
+  background:rgba(8,8,22,.7);border:1px solid var(--border);
+  border-radius:12px;padding:18px 20px;margin-bottom:24px;
+}
+.cbox-title{font-size:.62rem;font-weight:700;letter-spacing:1.3px;
+  text-transform:uppercase;color:#555;margin-bottom:8px}
+.cbox-action{font-size:.9rem;color:#ccc;line-height:1.6}
+.cbox-triage{
+  margin-top:10px;padding:8px 12px;border-radius:8px;font-size:.75rem;
+  font-weight:600;color:#bbb;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+/* action buttons at bottom of modal */
+.modal-actions{
+  display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
+}
+.btn-new{
+  padding:14px 32px;border-radius:12px;font-size:.85rem;font-weight:800;
+  letter-spacing:.6px;cursor:pointer;transition:all .22s;border:none;
+  background:linear-gradient(135deg,#cbb3e8 0%,#b293d8 100%);
+  color:#120924;box-shadow:0 0 20px rgba(203,179,232,.4);
+}
+.btn-new:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(203,179,232,.6);}
+.btn-close{
+  padding:14px 32px;border-radius:12px;font-size:.85rem;font-weight:700;
+  letter-spacing:.6px;cursor:pointer;transition:all .22s;
+  background:rgba(203,179,232,.08);border:1px solid var(--border);color:#aaa;
+}
+.btn-close:hover{background:rgba(203,179,232,.15);color:#ddd;}
+
+/* progress bar during analysis */
+.progress-wrap{
+  margin-top:12px;display:none;
+}
+.progress-bar{
+  height:3px;border-radius:2px;background:rgba(203,179,232,.12);overflow:hidden;
+}
+.progress-fill{
+  height:100%;width:0%;background:linear-gradient(90deg,#cbb3e8,#b293d8);
+  border-radius:2px;transition:width .3s ease;
+}
+.progress-label{font-size:.6rem;color:#555;text-align:center;margin-top:5px;letter-spacing:.4px}
 </style>
 </head>
 <body>
@@ -169,7 +308,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
 <div class="upload-panel">
   <div class="pnl-title">Radiograph Input</div>
   
-  <input type="file" id="file-inp" accept="image/*,.dcm" style="display:none;"/>
+  <input type="file" id="file-inp" accept="image/*" style="display:none;"/>
   
   <div class="drop-zone" id="drop-zone">
     <div class="drop-icon">🦴</div>
@@ -190,11 +329,17 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
 
   <button class="analyze-btn" id="analyze-btn" disabled>Select Knee X-ray</button>
 
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-label" id="progress-label">Preprocessing radiograph…</div>
+  </div>
+
   <div class="result-box" id="result-box">
     <div class="result-label">Diagnostic Classification</div>
     <div class="result-val" id="result-val">—</div>
     <div class="result-conf" id="result-conf">—</div>
     <div class="result-triage" id="result-triage" style="display:none;"></div>
+    <button class="view-full-btn" id="view-full-btn">View Full Report &amp; Grad-CAM →</button>
   </div>
 </div>
 
@@ -239,15 +384,90 @@ nav{position:fixed;top:0;left:0;right:0;z-index:10;
   <div class="disclaimer">⚠ For research use only — not for clinical diagnosis or treatment decisions.</div>
 </div>
 
+<!-- ═══════ RESULTS MODAL ═══════ -->
+<div class="results-modal" id="results-modal">
+  <div class="modal-inner">
+
+    <!-- Verdict Banner -->
+    <div class="verdict-banner" id="verdict-banner">
+      <div class="verdict-icon" id="verdict-icon">🔬</div>
+      <div class="verdict-text">
+        <div class="verdict-title" id="verdict-title">—</div>
+        <div class="verdict-sub" id="verdict-sub">—</div>
+      </div>
+      <div class="verdict-meta">
+        <div class="vm-prob" id="vm-prob">—</div>
+        <div class="vm-label">Pathology Prob.</div>
+        <div class="vm-thresh" id="vm-thresh">—</div>
+      </div>
+    </div>
+
+    <!-- Image Grid: Original + Grad-CAM -->
+    <div class="img-grid">
+      <div class="img-card">
+        <div class="img-card-head">
+          <span class="img-card-title">Original Radiograph</span>
+          <span class="img-card-badge">Input</span>
+        </div>
+        <div class="img-body">
+          <img id="modal-orig" alt="Original X-ray" src=""/>
+        </div>
+      </div>
+      <div class="img-card">
+        <div class="img-card-head">
+          <span class="img-card-title">Saliency Map (Grad-CAM)</span>
+          <span class="img-card-badge">XAI Overlay</span>
+        </div>
+        <div class="img-body" id="gradcam-body">
+          <img id="modal-gradcam" alt="Grad-CAM heatmap" src=""/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics Strip -->
+    <div class="metrics-strip">
+      <div class="metric-card">
+        <div class="mc-label">Confidence</div>
+        <div class="mc-val green" id="mc-conf">—</div>
+        <div class="mc-sub">Model certainty</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Raw Logit</div>
+        <div class="mc-val blue" id="mc-logit">—</div>
+        <div class="mc-sub">Pre-sigmoid output</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Threshold</div>
+        <div class="mc-val gold" id="mc-thresh">—</div>
+        <div class="mc-sub">Decision boundary</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">Uncertainty Zone</div>
+        <div class="mc-val" id="mc-unc">—</div>
+        <div class="mc-sub">Within ±0.08 of threshold</div>
+      </div>
+    </div>
+
+    <!-- Clinical Action -->
+    <div class="clinical-box">
+      <div class="cbox-title">Clinical Recommendation</div>
+      <div class="cbox-action" id="cbox-action">—</div>
+      <div class="cbox-triage" id="cbox-triage">—</div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="modal-actions">
+      <button class="btn-new" id="btn-new-image">🩻 Analyze Another Image</button>
+      <button class="btn-close" id="btn-close-modal">✕ Close Report</button>
+    </div>
+
+  </div>
+</div>
+
 {% raw %}
 <script>
 // ═══════════════════════════════════════════════════════════════
 //  ORTHOSCAN AI  — Anatomical Knee Joint  · WebGL 2 Solid Mesh
-//  Structures: Distal Femur (Shaft / Metaphysis / Medial & Lateral
-//              Condyles) + Tibiofemoral Joint Space +
-//              Proximal Tibia (Plateau / Shaft) + Fibula
-//  Shader: Blinn-Phong, 3-point lighting, two-pass transparency
-//  Pathology: Subchondral demineralisation + JSN collapse
 // ═══════════════════════════════════════════════════════════════
 (function(){
 "use strict";
@@ -256,59 +476,42 @@ const canvas = document.getElementById('gl');
 const gl = canvas.getContext('webgl2',{antialias:true,alpha:false,depth:true});
 if(!gl){ document.body.innerHTML='<p style="color:red;padding:40px">WebGL 2 not supported.</p>'; return; }
 
-// ── VERTEX SHADER ────────────────────────────────────────────
 const VS = `#version 300 es
 precision highp float;
-
 layout(location=0) in vec3 a_pos;
 layout(location=1) in vec3 a_normal;
 layout(location=2) in float a_isFemur;
 layout(location=3) in float a_isSub;
 layout(location=4) in float a_isCart;
-
 uniform mat4 u_mv;
 uniform mat4 u_proj;
-uniform float u_collapse;  // 0=healthy  1=JSN collapsed
-
+uniform float u_collapse;
 out vec3  v_pos_vs;
 out vec3  v_norm_vs;
 out float v_isSub;
 out float v_isCart;
-
 void main(){
   vec3 p = a_pos;
-
-  // Joint Space Narrowing: femur descends toward tibia
   if(a_isFemur > 0.5) p.y -= u_collapse * 0.34;
-
-  // Push cartilage slightly outward to avoid z-fighting with bone
-  if(a_isCart > 0.5) p += a_normal * 0.013;
-
+  if(a_isCart  > 0.5) p += a_normal * 0.013;
   vec4 vp   = u_mv * vec4(p, 1.0);
   v_pos_vs  = vp.xyz;
   v_norm_vs = mat3(u_mv) * a_normal;
   v_isSub   = a_isSub;
   v_isCart  = a_isCart;
-
   gl_Position = u_proj * vp;
 }`;
 
-// ── FRAGMENT SHADER ──────────────────────────────────────────
 const FS = `#version 300 es
 precision highp float;
-
 in vec3  v_pos_vs;
 in vec3  v_norm_vs;
 in float v_isSub;
 in float v_isCart;
-
-uniform float u_pathology;   // 0=healthy  1=severe osteoporosis
+uniform float u_pathology;
 uniform float u_time;
-uniform int   u_pass;        // 0=opaque bone  1=transparent cartilage
-
+uniform int   u_pass;
 out vec4 fragColor;
-
-// Smooth value noise for surface micro-texture
 float hash31(vec3 p){
   p = fract(p * vec3(443.8975,397.2973,491.1871));
   p += dot(p, p.yxz + 19.19);
@@ -316,69 +519,50 @@ float hash31(vec3 p){
 }
 float noise(vec3 p){
   vec3 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
-  return mix(mix(mix(hash31(i),          hash31(i+vec3(1,0,0)),u.x),
+  return mix(mix(mix(hash31(i),hash31(i+vec3(1,0,0)),u.x),
                  mix(hash31(i+vec3(0,1,0)),hash31(i+vec3(1,1,0)),u.x),u.y),
              mix(mix(hash31(i+vec3(0,0,1)),hash31(i+vec3(1,0,1)),u.x),
                  mix(hash31(i+vec3(0,1,1)),hash31(i+vec3(1,1,1)),u.x),u.y),u.z);
 }
-
 void main(){
-  // Two-pass transparency
   if(u_pass == 0 && v_isCart > 0.5) discard;
   if(u_pass == 1 && v_isCart < 0.5) discard;
-
   vec3 N = normalize(v_norm_vs);
-  vec3 V = normalize(-v_pos_vs);  // Camera at origin in view space
-
-  // ── THREE-POINT LIGHTING (view-space; moves with camera) ──
-  vec3 Lk = normalize(vec3( 0.55, 1.20,  0.85));  // Key: upper-front-right  (warm)
-  vec3 Lf = normalize(vec3(-0.90, 0.25,  0.60));  // Fill: left-side          (cool, dim)
-  vec3 Lr = normalize(vec3( 0.10,-0.60, -0.90));  // Rim:  back-low           (edge pop)
-
+  vec3 V = normalize(-v_pos_vs);
+  vec3 Lk = normalize(vec3( 0.55, 1.20,  0.85));
+  vec3 Lf = normalize(vec3(-0.90, 0.25,  0.60));
+  vec3 Lr = normalize(vec3( 0.10,-0.60, -0.90));
   float dk = max(dot(N, Lk), 0.0);
   float df = max(dot(N, Lf), 0.0) * 0.38;
   float dr = max(dot(N, Lr), 0.0) * 0.22;
-
   vec3  Hk   = normalize(Lk + V);
   float spec = pow(max(dot(N, Hk), 0.0), 55.0);
-
-  // ── BONE MATERIAL ─────────────────────────────────────────
   vec3 ivoryH   = vec3(0.945, 0.900, 0.760);
   vec3 boneErode= vec3(0.780, 0.680, 0.650);
   vec3 subHot   = vec3(0.920, 0.400, 0.550);
   vec3 cartBlue = vec3(0.520, 0.830, 0.960);
-
   float n = noise(v_pos_vs * 18.0) * 0.055;
-
   vec3 baseC = mix(ivoryH, boneErode, u_pathology * 0.85);
   if(v_isSub > 0.5){
     float erosion = u_pathology * u_pathology * 1.4;
     baseC = mix(baseC, subHot, clamp(erosion, 0.0, 1.0));
   }
   baseC = clamp(baseC - n, 0.0, 1.0);
-
   vec3 albedo = (v_isCart > 0.5) ? cartBlue : baseC;
-
   float specPow = (v_isCart > 0.5) ? 0.22 : 0.58;
-  vec3 col  = albedo * 0.19             // ambient
-            + albedo * (dk + df + dr)   // diffuse
-            + vec3(spec * specPow);     // specular highlight
-
+  vec3 col  = albedo * 0.19 + albedo * (dk + df + dr) + vec3(spec * specPow);
   if(v_isSub > 0.5 && u_pathology > 0.3){
     float pulse = sin(u_time * 2.2 + v_pos_vs.x * 5.0) * 0.5 + 0.5;
     col = mix(col, vec3(0.95, 0.30, 0.55), u_pathology * pulse * 0.25);
   }
-
   float dist  = length(v_pos_vs);
   float fog   = smoothstep(6.0, 11.0, dist);
   vec3 fogCol = vec3(0.04, 0.04, 0.09);
   col = mix(col, fogCol, fog * 0.4);
-
   float alpha = (v_isCart > 0.5) ? 0.60 : 1.0;
   fragColor = vec4(col, alpha);
 }`;
 
-// ── COMPILE & LINK ───────────────────────────────────────────
 function mkShader(src, type){
   const s = gl.createShader(type);
   gl.shaderSource(s, src);
@@ -404,328 +588,143 @@ const U = {
   pass: gl.getUniformLocation(prog, 'u_pass'),
 };
 
-// ── GEOMETRY BUILDER ─────────────────────────────────────────
 const VSTRIDE = 9;
+function pushV(arr, x,y,z, nx,ny,nz, iF,iS,iC){ arr.push(x,y,z,nx,ny,nz,iF,iS,iC); }
 
-function pushV(arr, x,y,z, nx,ny,nz, iF,iS,iC){
-  arr.push(x,y,z,nx,ny,nz,iF,iS,iC);
-}
-
-function buildCylinder({cx=0,cz=0,rB,rT,yB,yT,segs=32,
-                        capB=true,capT=true,iF=0,iS=0,iC=0}){
-  const verts=[], inds=[];
-  let vi=0;
-
-  function v(x,y,z,nx,ny,nz){
-    const l=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
-    pushV(verts,x,y,z,nx/l,ny/l,nz/l,iF,iS,iC);
-    return vi++;
-  }
-
-  const dy=yT-yB, dr=rT-rB;
-  const len=Math.sqrt(dy*dy+dr*dr)||1;
+function buildCylinder({cx=0,cz=0,rB,rT,yB,yT,segs=32,capB=true,capT=true,iF=0,iS=0,iC=0}){
+  const verts=[], inds=[]; let vi=0;
+  function v(x,y,z,nx,ny,nz){const l=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;pushV(verts,x,y,z,nx/l,ny/l,nz/l,iF,iS,iC);return vi++;}
+  const dy=yT-yB, dr=rT-rB, len=Math.sqrt(dy*dy+dr*dr)||1;
   const ny_side=-dr/len, nr_scale=dy/len;
-
   const bot=[], top=[];
-  for(let s=0;s<=segs;s++){
-    const a=(s/segs)*Math.PI*2, ca=Math.cos(a), sa=Math.sin(a);
-    bot.push(v(cx+rB*ca,yB,cz+rB*sa, nr_scale*ca,ny_side,nr_scale*sa));
-    top.push(v(cx+rT*ca,yT,cz+rT*sa, nr_scale*ca,ny_side,nr_scale*sa));
-  }
-  for(let s=0;s<segs;s++){
-    inds.push(bot[s],bot[s+1],top[s]);
-    inds.push(bot[s+1],top[s+1],top[s]);
-  }
-
-  if(capB){
-    const c=v(cx,yB,cz,0,-1,0); const r=[];
-    for(let s=0;s<=segs;s++){
-      const a=(s/segs)*Math.PI*2;
-      r.push(v(cx+rB*Math.cos(a),yB,cz+rB*Math.sin(a),0,-1,0));
-    }
-    for(let s=0;s<segs;s++) inds.push(c,r[s+1],r[s]);
-  }
-  if(capT){
-    const c=v(cx,yT,cz,0,1,0); const r=[];
-    for(let s=0;s<=segs;s++){
-      const a=(s/segs)*Math.PI*2;
-      r.push(v(cx+rT*Math.cos(a),yT,cz+rT*Math.sin(a),0,1,0));
-    }
-    for(let s=0;s<segs;s++) inds.push(c,r[s],r[s+1]);
-  }
+  for(let s=0;s<=segs;s++){const a=(s/segs)*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a);bot.push(v(cx+rB*ca,yB,cz+rB*sa,nr_scale*ca,ny_side,nr_scale*sa));top.push(v(cx+rT*ca,yT,cz+rT*sa,nr_scale*ca,ny_side,nr_scale*sa));}
+  for(let s=0;s<segs;s++){inds.push(bot[s],bot[s+1],top[s]);inds.push(bot[s+1],top[s+1],top[s]);}
+  if(capB){const c=v(cx,yB,cz,0,-1,0);const r=[];for(let s=0;s<=segs;s++){const a=(s/segs)*Math.PI*2;r.push(v(cx+rB*Math.cos(a),yB,cz+rB*Math.sin(a),0,-1,0));}for(let s=0;s<segs;s++)inds.push(c,r[s+1],r[s]);}
+  if(capT){const c=v(cx,yT,cz,0,1,0);const r=[];for(let s=0;s<=segs;s++){const a=(s/segs)*Math.PI*2;r.push(v(cx+rT*Math.cos(a),yT,cz+rT*Math.sin(a),0,1,0));}for(let s=0;s<segs;s++)inds.push(c,r[s],r[s+1]);}
   return {verts,inds};
 }
-
 function buildDisc({cx=0,cz=0,r,y,segs=32,ny=1,iF=0,iS=0,iC=0}){
-  const verts=[], inds=[];
-  let vi=0;
-  function v(x,vy,z){ pushV(verts,x,vy,z,0,ny,0,iF,iS,iC); return vi++; }
-  const c=v(cx,y,cz);
-  const ring=[];
-  for(let s=0;s<=segs;s++){
-    const a=(s/segs)*Math.PI*2;
-    ring.push(v(cx+r*Math.cos(a),y,cz+r*Math.sin(a)));
-  }
-  for(let s=0;s<segs;s++){
-    if(ny>0) inds.push(c,ring[s],ring[s+1]);
-    else     inds.push(c,ring[s+1],ring[s]);
-  }
+  const verts=[], inds=[]; let vi=0;
+  function v(x,vy,z){pushV(verts,x,vy,z,0,ny,0,iF,iS,iC);return vi++;}
+  const c=v(cx,y,cz); const ring=[];
+  for(let s=0;s<=segs;s++){const a=(s/segs)*Math.PI*2;ring.push(v(cx+r*Math.cos(a),y,cz+r*Math.sin(a)));}
+  for(let s=0;s<segs;s++){if(ny>0)inds.push(c,ring[s],ring[s+1]);else inds.push(c,ring[s+1],ring[s]);}
   return {verts,inds};
 }
-
-function buildEllipsoid({cx=0,cy=0,cz=0,rx=1,ry=1,rz=1,
-                          segs=32,rings=20,r0=0,r1=1,
-                          iF=0,iS=0,iC=0,
-                          subStart=1.1,cartStart=1.1}){
-  const verts=[], inds=[];
-  let vi=0;
+function buildEllipsoid({cx=0,cy=0,cz=0,rx=1,ry=1,rz=1,segs=32,rings=20,r0=0,r1=1,iF=0,iS=0,iC=0,subStart=1.1,cartStart=1.1}){
+  const verts=[], inds=[]; let vi=0;
   const ri0=Math.round(r0*rings), ri1=Math.round(r1*rings);
-
-  function v(x,y,z,nx,ny,nz,isS,isC){
-    const l=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
-    pushV(verts,x,y,z,nx/l,ny/l,nz/l,iF,isS,isC);
-    return vi++;
-  }
-
-  for(let r=ri0;r<=ri1;r++){
-    const frac=r/rings;
-    const isS= (frac>=subStart)  ? 1 : iS;
-    const isC= (frac>=cartStart) ? 1 : 0;
-    const theta=frac*Math.PI;
-    const sinT=Math.sin(theta), cosT=Math.cos(theta);
-    for(let s=0;s<=segs;s++){
-      const phi=(s/segs)*Math.PI*2;
-      v(cx+rx*sinT*Math.cos(phi), cy+ry*cosT, cz+rz*sinT*Math.sin(phi),
-        sinT*Math.cos(phi)/(rx*rx), cosT/(ry*ry), sinT*Math.sin(phi)/(rz*rz),
-        isS, isC);
-    }
-  }
-
+  function v(x,y,z,nx,ny,nz,isS,isC){const l=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;pushV(verts,x,y,z,nx/l,ny/l,nz/l,iF,isS,isC);return vi++;}
+  for(let r=ri0;r<=ri1;r++){const frac=r/rings;const isS=(frac>=subStart)?1:iS;const isC=(frac>=cartStart)?1:0;const theta=frac*Math.PI;const sinT=Math.sin(theta),cosT=Math.cos(theta);for(let s=0;s<=segs;s++){const phi=(s/segs)*Math.PI*2;v(cx+rx*sinT*Math.cos(phi),cy+ry*cosT,cz+rz*sinT*Math.sin(phi),sinT*Math.cos(phi)/(rx*rx),cosT/(ry*ry),sinT*Math.sin(phi)/(rz*rz),isS,isC);}}
   const stride=segs+1, rCount=ri1-ri0;
-  for(let r=0;r<rCount;r++){
-    for(let s=0;s<segs;s++){
-      const a=r*stride+s, b=r*stride+s+1;
-      const c=(r+1)*stride+s, d=(r+1)*stride+s+1;
-      inds.push(a,c,b, b,c,d);
-    }
-  }
+  for(let r=0;r<rCount;r++){for(let s=0;s<segs;s++){const a=r*stride+s,b=r*stride+s+1,c=(r+1)*stride+s,d=(r+1)*stride+s+1;inds.push(a,c,b,b,c,d);}}
   return {verts,inds};
 }
-
 function merge(geos){
-  const av=[], ai=[];
-  let base=0;
-  for(const g of geos){
-    for(const x of g.verts) av.push(x);
-    for(const i of g.inds)  ai.push(i+base);
-    base += g.verts.length/VSTRIDE;
-  }
-  return { verts:new Float32Array(av), inds:new Uint32Array(ai) };
+  const av=[], ai=[]; let base=0;
+  for(const g of geos){for(const x of g.verts)av.push(x);for(const i of g.inds)ai.push(i+base);base+=g.verts.length/VSTRIDE;}
+  return {verts:new Float32Array(av), inds:new Uint32Array(ai)};
 }
 
-// ── BUILD ANATOMICAL KNEE JOINT ──────────────────────────────
 const geos = [
-  // Distal Femur
-  buildCylinder({cx:0,cz:0, rB:0.37,rT:0.37, yB:2.1,yT:3.5, segs:32, capB:false, capT:true, iF:1}),
-  buildCylinder({cx:0,cz:0, rB:0.90,rT:0.37, yB:1.1,yT:2.1, segs:32, capB:false, capT:false, iF:1}),
-  buildDisc({cx:0,cz:0, r:0.90, y:1.10, ny:-1, iF:1}),
-  buildEllipsoid({cx:-0.44,cy:1.1,cz:0, rx:0.42,ry:0.52,rz:0.40, segs:32, rings:20, r0:0, r1:1.0, iF:1, subStart:0.82, cartStart:0.95}),
-  buildEllipsoid({cx:0.44,cy:1.1,cz:0, rx:0.42,ry:0.52,rz:0.40, segs:32, rings:20, r0:0, r1:1.0, iF:1, subStart:0.82, cartStart:0.95}),
-
-  // Proximal Tibia
-  buildCylinder({cx:0,cz:0, rB:0.68,rT:0.70, yB:0.08,yT:0.24, segs:32, capB:false, capT:false, iF:0}),
-  buildDisc({cx:0,cz:0, r:0.68, y:0.08, ny:-1, iF:0}),
-  buildDisc({cx:0,cz:0, r:0.70, y:0.24, ny:1, iF:0, iS:1, iC:1}),
-  buildCylinder({cx:0,cz:0, rB:0.42,rT:0.68, yB:-0.50,yT:0.08, segs:32, capB:false, capT:false, iF:0}),
-  buildCylinder({cx:0,cz:0, rB:0.42,rT:0.42, yB:-3.0,yT:-0.50, segs:32, capB:true, capT:false, iF:0}),
-  buildEllipsoid({cx:0,cy:0.24,cz:0, rx:0.09,ry:0.18,rz:0.09, segs:16, rings:12, r0:0, r1:0.5, iF:0, iS:1}),
-
-  // Proximal Fibula
-  buildEllipsoid({cx:0.88,cy:-0.10,cz:0, rx:0.21,ry:0.25,rz:0.21, segs:20, rings:14, r0:0, r1:1.0, iF:0}),
-  buildCylinder({cx:0.88,cz:0, rB:0.14,rT:0.14, yB:-1.30,yT:-0.10, segs:16, capB:true, capT:false, iF:0}),
+  buildCylinder({cx:0,cz:0,rB:0.37,rT:0.37,yB:2.1,yT:3.5,segs:32,capB:false,capT:true,iF:1}),
+  buildCylinder({cx:0,cz:0,rB:0.90,rT:0.37,yB:1.1,yT:2.1,segs:32,capB:false,capT:false,iF:1}),
+  buildDisc({cx:0,cz:0,r:0.90,y:1.10,ny:-1,iF:1}),
+  buildEllipsoid({cx:-0.44,cy:1.1,cz:0,rx:0.42,ry:0.52,rz:0.40,segs:32,rings:20,r0:0,r1:1.0,iF:1,subStart:0.82,cartStart:0.95}),
+  buildEllipsoid({cx:0.44,cy:1.1,cz:0,rx:0.42,ry:0.52,rz:0.40,segs:32,rings:20,r0:0,r1:1.0,iF:1,subStart:0.82,cartStart:0.95}),
+  buildCylinder({cx:0,cz:0,rB:0.68,rT:0.70,yB:0.08,yT:0.24,segs:32,capB:false,capT:false,iF:0}),
+  buildDisc({cx:0,cz:0,r:0.68,y:0.08,ny:-1,iF:0}),
+  buildDisc({cx:0,cz:0,r:0.70,y:0.24,ny:1,iF:0,iS:1,iC:1}),
+  buildCylinder({cx:0,cz:0,rB:0.42,rT:0.68,yB:-0.50,yT:0.08,segs:32,capB:false,capT:false,iF:0}),
+  buildCylinder({cx:0,cz:0,rB:0.42,rT:0.42,yB:-3.0,yT:-0.50,segs:32,capB:true,capT:false,iF:0}),
+  buildEllipsoid({cx:0,cy:0.24,cz:0,rx:0.09,ry:0.18,rz:0.09,segs:16,rings:12,r0:0,r1:0.5,iF:0,iS:1}),
+  buildEllipsoid({cx:0.88,cy:-0.10,cz:0,rx:0.21,ry:0.25,rz:0.21,segs:20,rings:14,r0:0,r1:1.0,iF:0}),
+  buildCylinder({cx:0.88,cz:0,rB:0.14,rT:0.14,yB:-1.30,yT:-0.10,segs:16,capB:true,capT:false,iF:0}),
 ];
+const {verts:allV, inds:allI} = merge(geos);
 
-const { verts:allV, inds:allI } = merge(geos);
-
-// ── UPLOAD TO GPU ────────────────────────────────────────────
 const vao = gl.createVertexArray();
 gl.bindVertexArray(vao);
-
 const vbo = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
 gl.bufferData(gl.ARRAY_BUFFER, allV, gl.STATIC_DRAW);
-
-const B = Float32Array.BYTES_PER_ELEMENT;
-const stride = VSTRIDE * B;
+const B = Float32Array.BYTES_PER_ELEMENT, stride = VSTRIDE*B;
 gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,3,gl.FLOAT,false,stride,0*B);
 gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1,3,gl.FLOAT,false,stride,3*B);
 gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2,1,gl.FLOAT,false,stride,6*B);
 gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3,1,gl.FLOAT,false,stride,7*B);
 gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4,1,gl.FLOAT,false,stride,8*B);
-
 const ibo = gl.createBuffer();
 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, allI, gl.STATIC_DRAW);
-
 gl.bindVertexArray(null);
 
-// ── MATRIX MATH ──────────────────────────────────────────────
-const m4 = ()=>new Float32Array(16);
-const eye = m=>{m[0]=m[5]=m[10]=m[15]=1;m[1]=m[2]=m[3]=m[4]=m[6]=m[7]=m[8]=m[9]=m[11]=m[12]=m[13]=m[14]=0;return m;};
-
-function mul(a,b){
-  const o=m4();
-  for(let c=0;c<4;c++) for(let r=0;r<4;r++){
-    let s=0; for(let k=0;k<4;k++) s+=a[k*4+r]*b[c*4+k];
-    o[c*4+r]=s;
-  }
-  return o;
-}
-
-function persp(fov,asp,near,far){
-  const o=m4(), f=1/Math.tan(fov*0.5);
-  o[0]=f/asp; o[5]=f;
-  o[10]=(far+near)/(near-far); o[11]=-1;
-  o[14]=2*far*near/(near-far);
-  return o;
-}
-
+const m4=()=>new Float32Array(16);
+const eye=m=>{m[0]=m[5]=m[10]=m[15]=1;m[1]=m[2]=m[3]=m[4]=m[6]=m[7]=m[8]=m[9]=m[11]=m[12]=m[13]=m[14]=0;return m;};
+function mul(a,b){const o=m4();for(let c=0;c<4;c++)for(let r=0;r<4;r++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+r]*b[c*4+k];o[c*4+r]=s;}return o;}
+function persp(fov,asp,near,far){const o=m4(),f=1/Math.tan(fov*0.5);o[0]=f/asp;o[5]=f;o[10]=(far+near)/(near-far);o[11]=-1;o[14]=2*far*near/(near-far);return o;}
 function rotX(a){const o=eye(m4()),c=Math.cos(a),s=Math.sin(a);o[5]=c;o[9]=-s;o[6]=s;o[10]=c;return o;}
 function rotY(a){const o=eye(m4()),c=Math.cos(a),s=Math.sin(a);o[0]=c;o[8]=s;o[2]=-s;o[10]=c;return o;}
 function trans(x,y,z){const o=eye(m4());o[12]=x;o[13]=y;o[14]=z;return o;}
 
-// ── CAMERA INTERACTION ────────────────────────────────────────
 let yaw=0.42, pitch=-0.10, zoom=5.8;
 let drag=false, lx=0, ly=0;
-
 canvas.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
-window.addEventListener('mousemove',e=>{
-  if(!drag) return;
-  yaw  +=(e.clientX-lx)*0.008; pitch+=(e.clientY-ly)*0.006;
-  pitch=Math.max(-1.2,Math.min(1.2,pitch));
-  lx=e.clientX; ly=e.clientY;
-});
+window.addEventListener('mousemove',e=>{if(!drag)return;yaw+=(e.clientX-lx)*0.008;pitch+=(e.clientY-ly)*0.006;pitch=Math.max(-1.2,Math.min(1.2,pitch));lx=e.clientX;ly=e.clientY;});
 window.addEventListener('mouseup',()=>drag=false);
-canvas.addEventListener('wheel',e=>{
-  zoom+=e.deltaY*0.005; zoom=Math.max(2.5,Math.min(9.5,zoom));
-  e.preventDefault();
-},{passive:false});
-
-// Touch
+canvas.addEventListener('wheel',e=>{zoom+=e.deltaY*0.005;zoom=Math.max(2.5,Math.min(9.5,zoom));e.preventDefault();},{passive:false});
 let pinch0=null;
-canvas.addEventListener('touchstart',e=>{
-  if(e.touches.length===1){drag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}
-  if(e.touches.length===2)
-    pinch0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
-                      e.touches[0].clientY-e.touches[1].clientY);
-  e.preventDefault();
-},{passive:false});
-canvas.addEventListener('touchmove',e=>{
-  if(e.touches.length===1&&drag){
-    yaw  +=(e.touches[0].clientX-lx)*0.008;
-    pitch+=(e.touches[0].clientY-ly)*0.006;
-    lx=e.touches[0].clientX; ly=e.touches[0].clientY;
-  }
-  if(e.touches.length===2&&pinch0!==null){
-    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
-                       e.touches[0].clientY-e.touches[1].clientY);
-    zoom-=(d-pinch0)*0.012; zoom=Math.max(2.5,Math.min(9.5,zoom)); pinch0=d;
-  }
-  e.preventDefault();
-},{passive:false});
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){drag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}if(e.touches.length===2)pinch0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);e.preventDefault();},{passive:false});
+canvas.addEventListener('touchmove',e=>{if(e.touches.length===1&&drag){yaw+=(e.touches[0].clientX-lx)*0.008;pitch+=(e.touches[0].clientY-ly)*0.006;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}if(e.touches.length===2&&pinch0!==null){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);zoom-=(d-pinch0)*0.012;zoom=Math.max(2.5,Math.min(9.5,zoom));pinch0=d;}e.preventDefault();},{passive:false});
 canvas.addEventListener('touchend',()=>{drag=false;pinch0=null;});
 
-// ── MODE STATE ────────────────────────────────────────────────
 const MODES=[
-  {pathology:0.00, collapse:0.00,
-   jsn:'4.8 mm', bmd:'1.24', ts:'+0.8', po:'12%',
-   jc:'c', bc:'c', tc:'', pc:'r'},
-  {pathology:0.48, collapse:0.55,
-   jsn:'2.9 mm', bmd:'0.91', ts:'−1.4', po:'38%',
-   jc:'',  bc:'',  tc:'', pc:'r'},
-  {pathology:0.94, collapse:0.98,
-   jsn:'1.1 mm', bmd:'0.63', ts:'−2.9', po:'73%',
-   jc:'r', bc:'r', tc:'r', pc:'r'},
+  {pathology:0.00,collapse:0.00,jsn:'4.8 mm',bmd:'1.24',ts:'+0.8',po:'12%',jc:'c',bc:'c',tc:'',pc:'r'},
+  {pathology:0.48,collapse:0.55,jsn:'2.9 mm',bmd:'0.91',ts:'−1.4',po:'38%',jc:'',bc:'',tc:'',pc:'r'},
+  {pathology:0.94,collapse:0.98,jsn:'1.1 mm',bmd:'0.63',ts:'−2.9',po:'73%',jc:'r',bc:'r',tc:'r',pc:'r'},
 ];
-
 let tPath=0, tCol=0, curPath=0, curCol=0;
-
 function applyMode(i){
-  document.querySelectorAll('.mode-btn[data-mode]')
-    .forEach(b=>b.classList.toggle('active',+b.dataset.mode===i));
-  const m=MODES[i]; tPath=m.pathology; tCol=m.collapse;
-  hud('sp-jsn',m.jsn,m.jc); hud('sp-bmd',m.bmd,m.bc);
-  hud('sp-tscore',m.ts,m.tc); hud('sp-poros',m.po,m.pc);
+  document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.classList.toggle('active',+b.dataset.mode===i));
+  const m=MODES[i];tPath=m.pathology;tCol=m.collapse;
+  hud('sp-jsn',m.jsn,m.jc);hud('sp-bmd',m.bmd,m.bc);hud('sp-tscore',m.ts,m.tc);hud('sp-poros',m.po,m.pc);
 }
-
-function hud(id,val,cls){
-  const el=document.getElementById(id);
-  if(el){el.textContent=val; el.className='spc-val '+(cls||'');}
-}
-
-document.querySelectorAll('.mode-btn[data-mode]')
-  .forEach(b=>b.addEventListener('click',()=>applyMode(+b.dataset.mode)));
+function hud(id,val,cls){const el=document.getElementById(id);if(el){el.textContent=val;el.className='spc-val '+(cls||'');}}
+document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.addEventListener('click',()=>applyMode(+b.dataset.mode)));
 applyMode(0);
 
-// ── RENDER LOOP ───────────────────────────────────────────────
 let first=true;
-function resize(){
-  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-  gl.viewport(0,0,canvas.width,canvas.height);
-}
+function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;gl.viewport(0,0,canvas.width,canvas.height);}
 window.addEventListener('resize',resize);
 
 function frame(ts){
   requestAnimationFrame(frame);
   if(first){resize();first=false;}
-
   const t=ts*0.001;
   if(!drag) yaw+=0.0028;
-
   curPath+=(tPath-curPath)*0.022;
   curCol +=(tCol -curCol )*0.022;
-
   gl.clearColor(0.04,0.04,0.09,1.0);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-
-  gl.enable(gl.DEPTH_TEST);
-  gl.enable(gl.CULL_FACE);
-  gl.cullFace(gl.BACK);
-
-  const asp  = canvas.width/canvas.height;
-  const proj = persp(0.80, asp, 0.05, 50.0);
-  const mv   = mul(trans(0,-0.5,-zoom), mul(rotX(pitch), rotY(yaw)));
-
+  gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.cullFace(gl.BACK);
+  const asp=canvas.width/canvas.height;
+  const proj=persp(0.80,asp,0.05,50.0);
+  const mv=mul(trans(0,-0.5,-zoom),mul(rotX(pitch),rotY(yaw)));
   gl.useProgram(prog);
-  gl.uniformMatrix4fv(U.mv,   false, mv);
-  gl.uniformMatrix4fv(U.proj, false, proj);
-  gl.uniform1f(U.col,  curCol);
-  gl.uniform1f(U.path, curPath);
-  gl.uniform1f(U.time, t);
-
+  gl.uniformMatrix4fv(U.mv,false,mv);gl.uniformMatrix4fv(U.proj,false,proj);
+  gl.uniform1f(U.col,curCol);gl.uniform1f(U.path,curPath);gl.uniform1f(U.time,t);
   gl.bindVertexArray(vao);
-
-  // PASS 0: Opaque Bone
-  gl.depthMask(true);
-  gl.disable(gl.BLEND);
-  gl.uniform1i(U.pass, 0);
-  gl.drawElements(gl.TRIANGLES, allI.length, gl.UNSIGNED_INT, 0);
-
-  // PASS 1: Articular Cartilage
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  gl.depthMask(false);
-  gl.uniform1i(U.pass, 1);
-  gl.drawElements(gl.TRIANGLES, allI.length, gl.UNSIGNED_INT, 0);
-
-  gl.depthMask(true);
-  gl.disable(gl.BLEND);
-  gl.bindVertexArray(null);
+  gl.depthMask(true);gl.disable(gl.BLEND);gl.uniform1i(U.pass,0);
+  gl.drawElements(gl.TRIANGLES,allI.length,gl.UNSIGNED_INT,0);
+  gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.uniform1i(U.pass,1);
+  gl.drawElements(gl.TRIANGLES,allI.length,gl.UNSIGNED_INT,0);
+  gl.depthMask(true);gl.disable(gl.BLEND);gl.bindVertexArray(null);
 }
-
 requestAnimationFrame(frame);
 
-// ── UPLOAD & PREDICT ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════
+//  UPLOAD & PREDICT LOGIC
+// ═══════════════════════════════════════════════════
 const dz          = document.getElementById('drop-zone');
 const fi          = document.getElementById('file-inp');
 const previewCard = document.getElementById('preview-card');
@@ -738,22 +737,134 @@ const rbox        = document.getElementById('result-box');
 const rval        = document.getElementById('result-val');
 const rconf       = document.getElementById('result-conf');
 const rtriage     = document.getElementById('result-triage');
+const progWrap    = document.getElementById('progress-wrap');
+const progFill    = document.getElementById('progress-fill');
+const progLabel   = document.getElementById('progress-label');
+const viewFullBtn = document.getElementById('view-full-btn');
+
+// Modal elements
+const modal        = document.getElementById('results-modal');
+const verdictBanner= document.getElementById('verdict-banner');
+const verdictIcon  = document.getElementById('verdict-icon');
+const verdictTitle = document.getElementById('verdict-title');
+const verdictSub   = document.getElementById('verdict-sub');
+const vmProb       = document.getElementById('vm-prob');
+const vmThresh     = document.getElementById('vm-thresh');
+const modalOrig    = document.getElementById('modal-orig');
+const modalGradcam = document.getElementById('modal-gradcam');
+const mcConf       = document.getElementById('mc-conf');
+const mcLogit      = document.getElementById('mc-logit');
+const mcThresh     = document.getElementById('mc-thresh');
+const mcUnc        = document.getElementById('mc-unc');
+const cboxAction   = document.getElementById('cbox-action');
+const cboxTriage   = document.getElementById('cbox-triage');
+const btnNewImage  = document.getElementById('btn-new-image');
+const btnClose     = document.getElementById('btn-close-modal');
+
+let _lastData = null;
+
+// Progress animation
+let _progTimer = null;
+function startProgress(){
+  progWrap.style.display = 'block';
+  progFill.style.width = '0%';
+  const steps = [
+    [300,  '15%', 'Preprocessing radiograph…'],
+    [800,  '40%', 'Running ONNX inference…'],
+    [1800, '65%', 'Computing Grad-CAM saliency…'],
+    [2600, '85%', 'Generating report…'],
+  ];
+  steps.forEach(([delay, w, label]) => {
+    setTimeout(() => { progFill.style.width = w; progLabel.textContent = label; }, delay);
+  });
+}
+function stopProgress(){
+  progFill.style.width = '100%';
+  setTimeout(() => { progWrap.style.display = 'none'; progFill.style.width = '0%'; }, 500);
+}
+
+function resetToUpload(){
+  modal.classList.remove('open');
+  document.body.style.overflow = 'hidden';
+  // Reset sidebar
+  dz.style.display = 'block';
+  previewCard.style.display = 'none';
+  rbox.style.display = 'none';
+  btn.disabled = true;
+  btn.classList.remove('ready');
+  btn.innerHTML = 'Select Knee X-ray';
+  btn._file = null;
+  fi.value = '';
+  _lastData = null;
+}
+
+function openModal(data, origSrc){
+  _lastData = data;
+  const isPath = Boolean(
+    data.pathology_detected ||
+    (data.prediction && (
+      data.prediction.toLowerCase().includes('pathology') ||
+      data.prediction.toLowerCase().includes('osteoporosis')
+    ))
+  );
+  const isUnc = Boolean(data.uncertainty_zone);
+
+  // Verdict banner
+  const cls = isUnc ? 'uncertain' : (isPath ? 'pathology' : 'normal');
+  verdictBanner.className = 'verdict-banner ' + cls;
+  verdictIcon.textContent  = isUnc ? '⚠️' : (isPath ? '🔴' : '🟢');
+  verdictTitle.textContent = data.prediction || (isPath ? 'Osteoporosis Detected' : 'Normal Joint Architecture');
+  verdictTitle.className   = 'verdict-title ' + cls;
+  verdictSub.textContent   = data.clinical_action || '';
+  vmProb.textContent       = (data.osteoporosis_probability !== undefined)
+    ? (data.osteoporosis_probability * 100).toFixed(1) + '%' : '—';
+  vmProb.style.color       = isUnc ? '#f5c518' : (isPath ? '#e34234' : '#d4ff3f');
+  vmThresh.textContent     = data.threshold_used !== undefined
+    ? `Threshold: ${data.threshold_used}` : '';
+
+  // Images
+  modalOrig.src = origSrc;
+  if(data.gradcam_png){
+    modalGradcam.src = 'data:image/png;base64,' + data.gradcam_png;
+    modalGradcam.style.display = 'block';
+    document.getElementById('gradcam-body').style.display = 'flex';
+  } else {
+    document.getElementById('gradcam-body').innerHTML =
+      '<div style="color:#444;font-size:.8rem;text-align:center">Grad-CAM not available</div>';
+  }
+
+  // Metrics
+  const confPct = ((data.confidence || 0) * 100).toFixed(1);
+  mcConf.textContent  = confPct + '%';
+  mcConf.className    = 'mc-val ' + (isPath ? 'red' : 'green');
+  mcLogit.textContent = data.raw_logit !== undefined ? data.raw_logit.toFixed(3) : '—';
+  mcThresh.textContent= data.threshold_used !== undefined ? data.threshold_used : '—';
+  mcUnc.textContent   = isUnc ? 'YES ⚠' : 'No ✓';
+  mcUnc.className     = 'mc-val ' + (isUnc ? 'gold' : 'green');
+
+  // Clinical
+  cboxAction.textContent = data.clinical_action  || '—';
+  cboxTriage.textContent = data.clinical_triage  || '—';
+
+  modal.classList.add('open');
+  modal.scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+}
 
 function handleFile(file){
   if(!file) return;
   const isImage = (file.type && file.type.startsWith('image/')) ||
-                  /\.(jpe?g|png|webp|bmp|tiff|tif|dcm)$/i.test(file.name);
-  if(!isImage){
-    alert('Please select a valid radiograph image (JPEG, PNG, WebP).');
-    return;
-  }
+                  /\.(jpe?g|png|webp|bmp|tiff|tif)$/i.test(file.name);
+  if(!isImage){ alert('Please select a valid radiograph image (JPEG, PNG, WebP).'); return; }
 
   btn._file = file;
   btn.disabled = false;
   btn.classList.add('ready');
   btn.innerHTML = '⚡ Analyze Radiograph';
 
-  prev.src = URL.createObjectURL(file);
+  const url = URL.createObjectURL(file);
+  prev.src = url;
+  prev._objectURL = url;
   fileName.textContent = file.name;
   fileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
 
@@ -762,35 +873,14 @@ function handleFile(file){
   rbox.style.display = 'none';
 }
 
-dz.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  fi.value = '';
-  fi.click();
-});
-
-changeBtn.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  fi.value = '';
-  fi.click();
-});
-
-fi.addEventListener('change', ()=>{
-  if(fi.files && fi.files[0]){
-    handleFile(fi.files[0]);
-  }
-});
-
-dz.addEventListener('dragover', e=>{
-  e.preventDefault();
-  dz.classList.add('drag');
-});
+dz.addEventListener('click', e=>{e.stopPropagation();fi.value='';fi.click();});
+changeBtn.addEventListener('click', e=>{e.stopPropagation();fi.value='';fi.click();});
+fi.addEventListener('change', ()=>{if(fi.files&&fi.files[0])handleFile(fi.files[0]);});
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('drag');});
 dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
 dz.addEventListener('drop', e=>{
-  e.preventDefault();
-  dz.classList.remove('drag');
-  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]){
-    handleFile(e.dataTransfer.files[0]);
-  }
+  e.preventDefault();dz.classList.remove('drag');
+  if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);
 });
 
 btn.addEventListener('click', async()=>{
@@ -799,21 +889,25 @@ btn.addEventListener('click', async()=>{
 
   btn.disabled = true;
   btn.classList.remove('ready');
-  btn.innerHTML = '⏳ Analyzing Radiograph...';
+  btn.innerHTML = '⏳ Analyzing…';
+  rbox.style.display = 'none';
+  startProgress();
 
+  const origSrc = prev.src;
   const fd = new FormData();
   fd.append('file', file);
 
   try{
-    const resp = await fetch('/predict', { method: 'POST', body: fd });
+    const resp = await fetch('/predict', {method:'POST', body:fd});
     const data = await resp.json();
-    rbox.style.display = 'block';
+    stopProgress();
 
     if(!resp.ok || data.error || data.detail){
       rval.textContent = 'Error';
-      rval.className = 'result-val pathology';
+      rval.className   = 'result-val pathology';
       rconf.textContent = data.detail || data.error || 'Server error';
-      if(rtriage) rtriage.style.display = 'none';
+      rtriage.style.display = 'none';
+      rbox.style.display = 'block';
     } else {
       const isPath = Boolean(
         data.pathology_detected ||
@@ -822,35 +916,60 @@ btn.addEventListener('click', async()=>{
           data.prediction.toLowerCase().includes('osteoporosis')
         ))
       );
-
       rval.textContent = data.prediction || (isPath ? 'Osteoporosis Detected' : 'Normal Joint Architecture');
-      rval.className = 'result-val ' + (isPath ? 'pathology' : 'normal');
-
-      const confPct = ((data.confidence || 0.95) * 100).toFixed(1);
-      const probStr = (data.osteoporosis_probability !== undefined)
-        ? data.osteoporosis_probability.toFixed(3)
-        : '—';
-      rconf.innerHTML = `Confidence: <b>${confPct}%</b> · Pathology Prob: <b>${probStr}</b>`;
-
+      rval.className   = 'result-val ' + (isPath ? 'pathology' : 'normal');
+      const confPct    = ((data.confidence || 0.95) * 100).toFixed(1);
+      const probStr    = (data.osteoporosis_probability !== undefined)
+        ? data.osteoporosis_probability.toFixed(3) : '—';
+      rconf.innerHTML  = `Confidence: <b>${confPct}%</b> · Prob: <b>${probStr}</b>`;
       if(data.clinical_triage){
-        rtriage.textContent = data.clinical_triage + (data.clinical_action ? ' — ' + data.clinical_action : '');
+        rtriage.textContent = data.clinical_triage;
         rtriage.style.display = 'block';
-      }
+      } else { rtriage.style.display = 'none'; }
+      rbox.style.display = 'block';
 
-      // Synchronize 3D anatomical model with prediction
       applyMode(isPath ? 2 : 0);
+
+      // Auto-open the full modal
+      openModal(data, origSrc);
     }
   } catch(err){
+    stopProgress();
     rbox.style.display = 'block';
-    rval.textContent = 'Network Error';
-    rval.className = 'result-val pathology';
-    rconf.textContent = String(err.message || err);
-    if(rtriage) rtriage.style.display = 'none';
+    rval.textContent   = 'Network Error';
+    rval.className     = 'result-val pathology';
+    rconf.textContent  = String(err.message || err);
+    rtriage.style.display = 'none';
   } finally {
     btn.disabled = false;
     btn.classList.add('ready');
-    btn.innerHTML = '⚡ Re-Analyze Radiograph';
+    btn.innerHTML = '⚡ Re-Analyze';
   }
+});
+
+// View full report button (sidebar)
+viewFullBtn.addEventListener('click', ()=>{
+  if(_lastData) openModal(_lastData, prev.src);
+});
+
+// Close modal — keep sidebar result visible
+btnClose.addEventListener('click', ()=>{
+  modal.classList.remove('open');
+});
+
+// Analyze another image — reset everything
+btnNewImage.addEventListener('click', ()=>{
+  resetToUpload();
+});
+
+// Close modal on backdrop click (outside modal-inner)
+modal.addEventListener('click', e=>{
+  if(e.target === modal) modal.classList.remove('open');
+});
+
+// Keyboard: Escape closes modal
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape') modal.classList.remove('open');
 });
 
 })(); // end IIFE
