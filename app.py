@@ -29,8 +29,6 @@ ONNX_MODEL_PATH = os.environ.get(
     str(BASE_DIR / "exports_model" / "ortho_knee_densenet121.onnx")
 )
 default_meta = BASE_DIR / "exports_model" / "model_metadata.json"
-if not default_meta.exists():
-    default_meta = BASE_DIR / "exports_model" / "model_metadata (1).json"
 
 METADATA_PATH = os.environ.get(
     "METADATA_PATH",

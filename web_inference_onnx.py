@@ -18,18 +18,33 @@ class KneeRadiographONNXPredictor:
         Initializes the lightweight ONNX runtime inference session.
         Requires NO PyTorch, NO GPU, and NO training data!
         """
+        # Resolve ONNX path - cwd-relative first, then script-relative
         if not os.path.exists(onnx_model_path):
-            fb = os.path.join("exports_model", "ortho_knee_densenet121.onnx")
-            if os.path.exists(fb):
-                onnx_model_path = fb
-            else:
-                raise FileNotFoundError(f"ONNX model file not found: {onnx_model_path}")
-            
-        # Load metadata if present, else fallback to defaults
+            _here = os.path.dirname(os.path.abspath(__file__))
+            _found = False
+            for _fb in [
+                os.path.join("exports_model", "ortho_knee_densenet121.onnx"),
+                os.path.join(_here, "exports_model", "ortho_knee_densenet121.onnx"),
+            ]:
+                if os.path.exists(_fb):
+                    onnx_model_path = _fb
+                    _found = True
+                    break
+            if not _found:
+                raise FileNotFoundError(
+                    "ONNX model not found. Place it at exports_model/ortho_knee_densenet121.onnx"
+                )
+
+        # Resolve metadata path - cwd-relative first, then script-relative
         if not os.path.exists(metadata_path):
-            fb_m = os.path.join("exports_model", "model_metadata.json")
-            if os.path.exists(fb_m):
-                metadata_path = fb_m
+            _here = os.path.dirname(os.path.abspath(__file__))
+            for _fb_m in [
+                os.path.join("exports_model", "model_metadata.json"),
+                os.path.join(_here, "exports_model", "model_metadata.json"),
+            ]:
+                if os.path.exists(_fb_m):
+                    metadata_path = _fb_m
+                    break
         if os.path.exists(metadata_path):
             with open(metadata_path, 'r', encoding='utf-8') as f:
                 self.metadata = json.load(f)
