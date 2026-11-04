@@ -1,1446 +1,661 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>OrthoScan AI — Knee Radiography Pathology Detector</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <style>
-    /* ═══════════════════════════════════════════════════════════
-       DESIGN TOKENS
-    ═══════════════════════════════════════════════════════════ */
-    :root {
-      /* 3D sim palette */
-      --jet:       #0a0a0a;
-      --cerulean:  #007ba7;
-      --rose:      #ff2d95;
-      --cerulean-l:#42c8f0;
-
-      /* UI overlay palette */
-      --lavender:  #cbb3e8;
-      --chartreuse:#d4ff3f;
-      --tomato:    #e34234;
-      --amber:     #f5a623;
-
-      /* Glass surface */
-      --glass-bg:   rgba(10,10,14,0.78);
-      --glass-border:rgba(255,255,255,0.08);
-      --glass-hi:   rgba(255,255,255,0.04);
-
-      --text:      #f0eef5;
-      --muted:     #8b8899;
-      --faint:     #44424e;
-      --radius:    10px;
-      --radius-sm: 6px;
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       RESET & BASE
-    ═══════════════════════════════════════════════════════════ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; overflow: hidden; }
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--jet);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       FULL-SCREEN 3D CANVAS — BACKGROUND LAYER
-    ═══════════════════════════════════════════════════════════ */
-    #bone-canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-      display: block;
-      background: #0a0a0a;
-    }
-
-    #webgl-err {
-      display: none;
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%,-50%);
-      z-index: 9;
-      background: rgba(10,10,14,0.9);
-      border: 1px solid rgba(255,45,149,0.4);
-      border-radius: 10px;
-      padding: 20px 28px;
-      font-size: 13px;
-      color: #ff2d95;
-      text-align: center;
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       TOP NAV BAR
-    ═══════════════════════════════════════════════════════════ */
-    .topbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 50;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 24px;
-      background: rgba(10,10,14,0.65);
-      border-bottom: 1px solid var(--glass-border);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .brand-icon {
-      width: 30px; height: 30px;
-      border-radius: 7px;
-      background: linear-gradient(135deg, var(--cerulean) 0%, #004d6e 100%);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .brand-icon svg { width: 16px; height: 16px; color: #fff; }
-
-    .brand-name {
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text);
-    }
-
-    .brand-name .a1 { color: var(--cerulean-l); }
-    .brand-name .a2 { color: var(--rose); }
-
-    .brand-sub {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 0.04em;
-      margin-left: 2px;
-      display: none;
-    }
-
-    @media (min-width: 640px) { .brand-sub { display: inline; } }
-
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .nav-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 10px;
-      border-radius: 100px;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.03em;
-    }
-
-    .np-green {
-      background: rgba(0,123,167,0.14);
-      color: var(--cerulean-l);
-      border: 1px solid rgba(0,123,167,0.3);
-    }
-
-    .np-demo {
-      background: rgba(245,166,35,0.12);
-      color: var(--amber);
-      border: 1px solid rgba(245,166,35,0.25);
-    }
-
-    .np-lavender {
-      background: rgba(203,179,232,0.1);
-      color: var(--lavender);
-      border: 1px solid rgba(203,179,232,0.2);
-    }
-
-    .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-
-    /* ═══════════════════════════════════════════════════════════
-       LEFT ANALYSIS PANEL — floating glass card
-    ═══════════════════════════════════════════════════════════ */
-    .analysis-panel {
-      position: fixed;
-      top: 70px;
-      left: 20px;
-      bottom: 20px;
-      z-index: 40;
-      width: 320px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      overflow-y: auto;
-      scrollbar-width: none;
-    }
-
-    .analysis-panel::-webkit-scrollbar { display: none; }
-
-    @media (max-width: 700px) {
-      .analysis-panel {
-        left: 10px; right: 10px; width: auto;
-        top: auto; bottom: 10px;
-        max-height: 60vh;
-      }
-    }
-
-    /* Glass card base */
-    .glass-card {
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      padding: 16px;
-    }
-
-    /* Section label */
-    .sec-label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-
-    /* ── Upload zone ─────────────────────────────────────────── */
-    .drop-zone {
-      position: relative;
-      border: 1.5px dashed rgba(255,255,255,0.12);
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: border-color 0.15s ease, background 0.15s ease;
-      overflow: hidden;
-      min-height: 100px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--glass-hi);
-    }
-
-    .drop-zone:hover, .drop-zone.over {
-      border-color: rgba(203,179,232,0.4);
-      background: rgba(203,179,232,0.04);
-    }
-
-    .drop-zone input[type="file"] {
-      position: absolute; inset: 0; opacity: 0;
-      cursor: pointer; width: 100%; height: 100%;
-    }
-
-    .dz-empty {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 8px; padding: 24px 16px; pointer-events: none; user-select: none;
-    }
-
-    .dz-ico {
-      width: 36px; height: 36px; border-radius: 8px;
-      background: rgba(203,179,232,0.1);
-      border: 1px solid rgba(203,179,232,0.2);
-      display: flex; align-items: center; justify-content: center;
-      color: var(--lavender);
-    }
-
-    .dz-ico svg { width: 18px; height: 18px; }
-    .dz-p { font-size: 13px; font-weight: 500; color: var(--text); text-align: center; }
-    .dz-s { font-size: 11px; color: var(--muted); text-align: center; }
-
-    .dz-preview {
-      display: none;
-      flex-direction: row; align-items: center;
-      gap: 12px; padding: 12px 14px;
-      width: 100%; pointer-events: none; user-select: none;
-    }
-
-    .dz-preview.on { display: flex; }
-
-    .dz-thumb {
-      width: 56px; height: 56px; border-radius: var(--radius-sm);
-      object-fit: cover; border: 1px solid var(--glass-border);
-      flex-shrink: 0; background: rgba(255,255,255,0.05);
-    }
-
-    .dz-info { flex: 1; min-width: 0; }
-    .dz-fname { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dz-fsize { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .dz-change { font-size: 10px; color: var(--lavender); text-decoration: underline; text-underline-offset: 2px; margin-top: 4px; cursor: pointer; }
-
-    /* ── Analyze button ─────────────────────────────────────── */
-    .btn-analyze {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      width: 100%; padding: 11px 20px;
-      border-radius: var(--radius-sm); border: none;
-      background: var(--lavender); color: #0a0a0a;
-      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: opacity 0.15s, transform 0.12s;
-    }
-
-    .btn-analyze:hover:not(:disabled) { opacity: 0.88; }
-    .btn-analyze:active:not(:disabled) { transform: scale(0.985); }
-    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .btn-analyze .sp {
-      display: none; width: 14px; height: 14px;
-      border: 2px solid rgba(10,10,10,0.25); border-top-color: #0a0a0a;
-      border-radius: 50%; animation: spin 0.65s linear infinite;
-    }
-
-    .btn-analyze.loading .sp { display: block; }
-    .btn-analyze.loading .lbl { opacity: 0.6; }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Error banner ───────────────────────────────────────── */
-    .err-banner {
-      display: none; align-items: flex-start; gap: 10px;
-      background: rgba(227,66,52,0.08);
-      border: 1px solid rgba(227,66,52,0.25);
-      border-radius: var(--radius-sm); padding: 10px 12px;
-    }
-
-    .err-banner.on { display: flex; }
-    .err-banner svg { width: 15px; height: 15px; color: var(--tomato); flex-shrink: 0; margin-top: 1px; }
-    .err-banner p { font-size: 12px; color: var(--muted); }
-    .err-banner strong { color: var(--tomato); }
-
-    /* ── Results ────────────────────────────────────────────── */
-    #results-card {
-      display: none; flex-direction: column; gap: 12px;
-      animation: fadeUp 0.22s ease both;
-    }
-
-    #results-card.on { display: flex; }
-
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .result-prediction {
-      font-size: 15px; font-weight: 700;
-      letter-spacing: -0.01em; line-height: 1.3;
-    }
-
-    .rp-normal   { color: var(--chartreuse); }
-    .rp-pathology{ color: var(--tomato); }
-    .rp-uncertain{ color: var(--amber); }
-
-    /* Prob gauge */
-    .gauge-row {
-      display: flex; justify-content: space-between; align-items: baseline;
-      margin-bottom: 6px;
-    }
-
-    .gauge-title { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-    .gauge-val   { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500; color: var(--text); }
-
-    .gauge-track {
-      position: relative; height: 6px;
-      background: rgba(255,255,255,0.07); border-radius: 100px;
-    }
-
-    .gauge-fill {
-      position: absolute; top: 0; left: 0; height: 100%;
-      border-radius: 100px; min-width: 6px;
-      transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
-    }
-
-    .gf-normal    { background: var(--chartreuse); }
-    .gf-pathology { background: var(--tomato); }
-    .gf-uncertain { background: var(--amber); }
-
-    .gauge-thr {
-      position: absolute; top: -3px; bottom: -3px; width: 2px;
-      background: var(--lavender); border-radius: 2px; transform: translateX(-50%);
-    }
-
-    .gauge-thr::after {
-      content: attr(data-lbl);
-      position: absolute; top: -17px; left: 50%; transform: translateX(-50%);
-      font-size: 9px; font-family: 'JetBrains Mono', monospace;
-      color: rgba(203,179,232,0.6); white-space: nowrap;
-    }
-
-    .gauge-axis {
-      display: flex; justify-content: space-between; margin-top: 4px;
-      font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--faint);
-    }
-
-    /* Mini stats grid */
-    .stats-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-    }
-
-    .stat-box {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius-sm);
-      padding: 10px 12px;
-    }
-
-    .sb-lbl { font-size: 9px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-    .sb-val { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500; color: var(--text); }
-
-    /* Clinical action */
-    .clinical-box {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius-sm); padding: 12px;
-    }
-
-    .clinical-action { font-size: 12px; color: var(--text); line-height: 1.55; }
-
-    .triage-badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      margin-top: 8px; padding: 3px 10px;
-      border-radius: 100px; font-size: 11px; font-weight: 500;
-    }
-
-    .tb-high     { background: rgba(227,66,52,0.12); color: var(--tomato);     border: 1px solid rgba(227,66,52,0.25); }
-    .tb-moderate { background: rgba(245,166,35,0.12); color: var(--amber);     border: 1px solid rgba(245,166,35,0.25); }
-    .tb-routine  { background: rgba(212,255,63,0.08); color: var(--chartreuse);border: 1px solid rgba(212,255,63,0.2); }
-    .tb-border   { background: rgba(203,179,232,0.1); color: var(--lavender);  border: 1px solid rgba(203,179,232,0.2); }
-
-    /* Uncertainty warning */
-    .uncertainty-box {
-      display: none; align-items: flex-start; gap: 10px;
-      background: rgba(245,166,35,0.07);
-      border: 1px solid rgba(245,166,35,0.25);
-      border-radius: var(--radius-sm); padding: 10px 12px;
-    }
-
-    .uncertainty-box.on { display: flex; }
-    .uncertainty-box svg { width: 15px; height: 15px; color: var(--amber); flex-shrink: 0; margin-top: 1px; }
-    .uncertainty-box p { font-size: 11px; color: var(--muted); line-height: 1.55; }
-    .uncertainty-box strong { color: var(--amber); }
-
-    /* Demo tag inside result */
-    .demo-tag {
-      display: none; align-items: center; gap: 5px;
-      font-size: 10px; color: var(--amber);
-    }
-
-    .demo-tag.on { display: inline-flex; }
-    .demo-tag .dt-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
-
-    /* ═══════════════════════════════════════════════════════════
-       RIGHT SIDE — 3D STATS PANEL (floating)
-    ═══════════════════════════════════════════════════════════ */
-    .stats-panel {
-      position: fixed;
-      top: 70px; right: 20px;
-      z-index: 40;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      width: 164px;
-      pointer-events: none;
-    }
-
-    @media (max-width: 700px) { .stats-panel { display: none; } }
-
-    .sp-card {
-      background: rgba(10,10,14,0.72);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius-sm);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      padding: 10px 12px;
-    }
-
-    .spc-lbl { font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 3px; }
-    .spc-val { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #fff; line-height: 1; }
-    .spc-val.c { color: var(--cerulean-l); }
-    .spc-val.r { color: var(--rose); }
-    .spc-sub { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 3px; }
-
-    /* ═══════════════════════════════════════════════════════════
-       BOTTOM — 3D SIM MODE CONTROLS
-    ═══════════════════════════════════════════════════════════ */
-    .sim-controls {
-      position: fixed;
-      bottom: 20px; left: 50%; transform: translateX(-50%);
-      z-index: 40;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(10,10,14,0.72);
-      border: 1px solid var(--glass-border);
-      border-radius: 100px;
-      padding: 6px 8px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      pointer-events: all;
-    }
-
-    @media (max-width: 700px) { .sim-controls { bottom: 10px; } }
-
-    .sim-controls .ctrl-label {
-      font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
-      text-transform: uppercase; color: rgba(255,255,255,0.3);
-      padding: 0 6px; white-space: nowrap;
-    }
-
-    .sim-btn {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 5px 12px; border-radius: 100px;
-      font-size: 11px; font-weight: 500;
-      cursor: pointer; border: 1px solid transparent;
-      background: transparent; color: rgba(255,255,255,0.4);
-      transition: all 0.15s ease; white-space: nowrap;
-    }
-
-    .sim-btn:hover { color: var(--cerulean-l); border-color: rgba(0,123,167,0.3); }
-
-    .sim-btn.active-c {
-      background: rgba(0,123,167,0.16);
-      border-color: rgba(0,123,167,0.45);
-      color: var(--cerulean-l);
-    }
-
-    .sim-btn.active-r {
-      background: rgba(255,45,149,0.12);
-      border-color: rgba(255,45,149,0.4);
-      color: var(--rose);
-    }
-
-    .sim-btn .sdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-
-    /* Divider in controls */
-    .ctrl-divider { width: 1px; height: 18px; background: var(--glass-border); flex-shrink: 0; }
-
-    /* ═══════════════════════════════════════════════════════════
-       BMD STRIP — bottom bar
-    ═══════════════════════════════════════════════════════════ */
-    .bmd-strip {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      height: 3px;
-      background: rgba(255,255,255,0.04);
-      z-index: 50;
-    }
-
-    .bmd-bar {
-      height: 100%;
-      background: linear-gradient(90deg, var(--cerulean) 0%, var(--cerulean-l) 60%, var(--rose) 100%);
-      transition: width 0.12s linear;
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       DRAG HINT (fades out on first drag)
-    ═══════════════════════════════════════════════════════════ */
-    .drag-hint {
-      position: fixed;
-      bottom: 70px; left: 50%; transform: translateX(-50%);
-      z-index: 10;
-      font-size: 11px; color: rgba(255,255,255,0.18);
-      letter-spacing: 0.06em; text-transform: uppercase;
-      pointer-events: none;
-      transition: opacity 1s ease;
-    }
-
-    .drag-hint.gone { opacity: 0; }
-
-    /* ═══════════════════════════════════════════════════════════
-       FOOTER DISCLAIMER
-    ═══════════════════════════════════════════════════════════ */
-    .disclaimer {
-      position: fixed;
-      bottom: 8px; left: 50%; transform: translateX(-50%);
-      z-index: 50;
-      font-size: 10px; color: rgba(255,255,255,0.18);
-      white-space: nowrap; letter-spacing: 0.03em;
-      pointer-events: none;
-    }
-
-    @media (max-width: 700px) { .disclaimer { display: none; } }
-
-    /* ═══════════════════════════════════════════════════════════
-       LEGEND (bottom right)
-    ═══════════════════════════════════════════════════════════ */
-    .legend {
-      position: fixed;
-      bottom: 70px; right: 20px;
-      z-index: 40;
-      background: rgba(10,10,14,0.72);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius-sm);
-      padding: 10px 13px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      pointer-events: none;
-    }
-
-    @media (max-width: 700px) { .legend { display: none; } }
-
-    .legend-title { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 8px; }
-
-    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
-    .legend-item:last-child { margin-bottom: 0; }
-
-    .l-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .ld-c { background: var(--cerulean); box-shadow: 0 0 5px var(--cerulean); }
-    .ld-m { background: #6e4dbf; }
-    .ld-r { background: var(--rose); box-shadow: 0 0 5px var(--rose); }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OrthoScan AI — Knee Radiography Pathology Detector</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --lavender:#cbb3e8;--chartreuse:#d4ff3f;--tomato:#e34234;
+  --jet:#0a0a0a;--cerulean:#007ba7;--rose:#ff2d95;
+  --glass:rgba(10,10,20,0.72);--border:rgba(203,179,232,0.18);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--jet);font-family:'Segoe UI',system-ui,sans-serif;color:#e8e4f0}
+canvas#gl{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:10;
+  display:flex;align-items:center;padding:0 24px;height:52px;
+  background:rgba(10,10,20,0.85);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px)}
+.nav-logo{font-size:1.05rem;font-weight:700;letter-spacing:.5px;color:#fff}
+.nav-logo span{color:var(--lavender)}
+.nav-sub{font-size:.72rem;color:#888;margin-left:10px;letter-spacing:.5px}
+.nav-badges{margin-left:auto;display:flex;gap:8px}
+.badge{padding:4px 10px;border-radius:20px;font-size:.68rem;font-weight:600;letter-spacing:.5px;border:1px solid var(--border);background:rgba(203,179,232,.08);color:var(--lavender)}
+.badge.ok{border-color:rgba(0,123,167,.5);color:var(--cerulean);background:rgba(0,123,167,.1)}
+
+/* UPLOAD PANEL */
+.upload-panel{position:fixed;top:70px;left:24px;z-index:10;width:280px;
+  background:var(--glass);border:1px solid var(--border);border-radius:16px;
+  padding:20px;backdrop-filter:blur(20px)}
+.pnl-title{font-size:.62rem;font-weight:700;letter-spacing:1.5px;color:var(--lavender);margin-bottom:14px;text-transform:uppercase}
+.drop-zone{border:1.5px dashed var(--border);border-radius:10px;padding:28px 16px;
+  text-align:center;cursor:pointer;transition:all .25s;position:relative}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--lavender);background:rgba(203,179,232,.06)}
+.drop-icon{font-size:2rem;margin-bottom:8px;opacity:.5}
+.drop-title{font-size:.85rem;font-weight:600;color:#ccc;margin-bottom:4px}
+.drop-hint{font-size:.68rem;color:#666}
+#file-inp{display:none}
+#preview-img{width:100%;border-radius:8px;margin-top:12px;display:none;border:1px solid var(--border)}
+.analyze-btn{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;
+  background:linear-gradient(135deg,rgba(203,179,232,.25),rgba(203,179,232,.12));
+  border:1px solid var(--lavender);color:var(--lavender);font-size:.82rem;font-weight:700;
+  letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:all .25s}
+.analyze-btn:hover:not(:disabled){background:linear-gradient(135deg,rgba(203,179,232,.4),rgba(203,179,232,.2));transform:translateY(-1px)}
+.analyze-btn:disabled{opacity:.4;cursor:not-allowed}
+.result-box{margin-top:14px;padding:12px;border-radius:10px;display:none;
+  border:1px solid var(--border);background:rgba(10,10,20,.5)}
+.result-label{font-size:.6rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#888;margin-bottom:4px}
+.result-val{font-size:1.1rem;font-weight:800;letter-spacing:.5px}
+.result-conf{font-size:.72rem;color:#888;margin-top:3px}
+.result-val.normal{color:var(--chartreuse)}
+.result-val.pathology{color:var(--tomato)}
+
+/* STATS PANEL */
+.stats-panel{position:fixed;top:70px;right:24px;z-index:10;width:200px;display:flex;flex-direction:column;gap:10px}
+.sp-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;backdrop-filter:blur(20px)}
+.spc-lbl{font-size:.58rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#666;margin-bottom:4px}
+.spc-val{font-size:1.4rem;font-weight:800;color:#e8e4f0;line-height:1}
+.spc-val.c{color:var(--cerulean)}
+.spc-val.r{color:var(--rose)}
+.spc-val.g{color:var(--chartreuse)}
+.spc-sub{font-size:.6rem;color:#555;margin-top:3px}
+.legend-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:14px 16px;backdrop-filter:blur(20px)}
+.legend-title{font-size:.58rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#666;margin-bottom:8px}
+.legend-row{display:flex;align-items:center;gap:7px;font-size:.65rem;color:#888;margin-bottom:4px}
+.leg-dot{width:7px;height:7px;border-radius:50%}
+
+/* BOTTOM MODES */
+.mode-bar{position:fixed;bottom:0;left:0;right:0;z-index:10;
+  display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0 14px}
+.mode-hint{font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:#444}
+.mode-btns{display:flex;gap:10px}
+.mode-btn{padding:8px 18px;border-radius:20px;border:1px solid var(--border);
+  background:rgba(10,10,20,.75);color:#888;font-size:.7rem;font-weight:600;
+  letter-spacing:.5px;cursor:pointer;transition:all .25s;backdrop-filter:blur(10px)}
+.mode-btn.active{border-color:var(--lavender);color:var(--lavender);background:rgba(203,179,232,.12)}
+.disclaimer{font-size:.58rem;color:#333;letter-spacing:.5px}
+</style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FULL-SCREEN 3D CANVAS — always behind everything
-═══════════════════════════════════════════════════════════ -->
-<canvas id="bone-canvas"></canvas>
-<div id="webgl-err">WebGL 2 unavailable in this browser.<br>3D simulation cannot start.</div>
+<!-- WebGL Canvas -->
+<canvas id="gl"></canvas>
 
-<!-- ═══════════════════════════════════════════════════════════
-     TOP NAVIGATION BAR
-═══════════════════════════════════════════════════════════ -->
-<nav class="topbar">
-  <div class="brand">
-    <div class="brand-icon">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-      </svg>
-    </div>
-    <div>
-      <span class="brand-name">Ortho<span class="a1">Scan</span> <span class="a2">AI</span></span>
-      <span class="brand-sub"> · Knee Radiography Pathology Detector</span>
-    </div>
-  </div>
-  <div class="nav-right">
-    {% if demo_mode %}
-    <span class="nav-pill np-demo"><span class="nav-dot"></span>Demo Mode</span>
-    {% else %}
-    <span class="nav-pill np-green"><span class="nav-dot"></span>DenseNet-121 Loaded</span>
-    {% endif %}
-    <span class="nav-pill np-lavender">ONNX Runtime</span>
+<!-- Navigation -->
+<nav>
+  <span class="nav-logo">Ortho<span>Scan</span> AI</span>
+  <span class="nav-sub">· Knee Radiography Pathology Detector</span>
+  <div class="nav-badges">
+    <span class="badge">· DenseNet-121 Loaded</span>
+    <span class="badge ok">ONNX Runtime</span>
   </div>
 </nav>
 
-<!-- ═══════════════════════════════════════════════════════════
-     LEFT — ANALYSIS PANEL
-═══════════════════════════════════════════════════════════ -->
-<aside class="analysis-panel">
-
-  <!-- Upload card -->
-  <div class="glass-card">
-    <p class="sec-label">Radiograph Input</p>
-    <div class="drop-zone" id="drop-zone">
-      <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/bmp"/>
-      <div class="dz-empty" id="dz-empty">
-        <div class="dz-ico">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
-        </div>
-        <p class="dz-p">Drop knee X-ray or click to browse</p>
-        <p class="dz-s">JPEG · PNG · WebP · Max 20 MB<br/>AP view preferred</p>
-      </div>
-      <div class="dz-preview" id="dz-preview">
-        <img class="dz-thumb" id="dz-thumb" src="" alt=""/>
-        <div class="dz-info">
-          <p class="dz-fname" id="dz-fname">—</p>
-          <p class="dz-fsize" id="dz-fsize">—</p>
-          <p class="dz-change">Click to change</p>
-        </div>
-      </div>
-    </div>
+<!-- Upload Panel -->
+<div class="upload-panel">
+  <div class="pnl-title">Radiograph Input</div>
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-icon">🦴</div>
+    <div class="drop-title">Drop knee X-ray or click to browse</div>
+    <div class="drop-hint">JPEG · PNG · WebP · Max 20 MB<br>AP view preferred</div>
+    <input type="file" id="file-inp" accept="image/*"/>
   </div>
-
-  <!-- Error -->
-  <div class="err-banner glass-card" id="err-banner" style="padding:10px 12px;">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-    </svg>
-    <p><strong>Error</strong> — <span id="err-msg"></span></p>
+  <img id="preview-img" alt="Preview"/>
+  <button class="analyze-btn" id="analyze-btn" disabled>Analyze Radiograph</button>
+  <div class="result-box" id="result-box">
+    <div class="result-label">Classification</div>
+    <div class="result-val" id="result-val">—</div>
+    <div class="result-conf" id="result-conf">—</div>
   </div>
+</div>
 
-  <!-- Analyze button card -->
-  <div class="glass-card" style="padding:12px;">
-    <button class="btn-analyze" id="btn-analyze" disabled>
-      <div class="sp"></div>
-      <span class="lbl">Analyze Radiograph</span>
-    </button>
-  </div>
-
-  <!-- Results card -->
-  <div class="glass-card" id="results-card">
-
-    <!-- Headline -->
-    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:12px;">
-      <div>
-        <p class="sec-label" style="margin-bottom:4px;">AI Assessment</p>
-        <p class="result-prediction" id="result-pred">—</p>
-      </div>
-      <span class="demo-tag" id="demo-tag"><span class="dt-dot"></span>Simulated</span>
-    </div>
-
-    <!-- Probability gauge -->
-    <div style="margin-bottom:14px;">
-      <div class="gauge-row">
-        <span class="gauge-title">Osteoporosis Probability</span>
-        <span class="gauge-val" id="g-val">—</span>
-      </div>
-      <div class="gauge-track">
-        <div class="gauge-fill" id="g-fill" style="width:0%"></div>
-        <div class="gauge-thr" id="g-thr" style="left:50%"></div>
-      </div>
-      <div class="gauge-axis"><span>0%</span><span>50%</span><span>100%</span></div>
-    </div>
-
-    <!-- Mini stats -->
-    <div class="stats-grid" style="margin-bottom:12px;">
-      <div class="stat-box">
-        <p class="sb-lbl">Confidence</p>
-        <p class="sb-val" id="s-conf">—</p>
-      </div>
-      <div class="stat-box">
-        <p class="sb-lbl">Threshold</p>
-        <p class="sb-val" id="s-thr">—</p>
-      </div>
-    </div>
-
-    <!-- Uncertainty warning -->
-    <div class="uncertainty-box" id="unc-box" style="margin-bottom:12px;">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <p><strong>Uncertainty zone.</strong> Within ±0.08 of threshold. Radiologist review mandatory per DOI:10.1007/s10278-024-01369-3.</p>
-    </div>
-
-    <!-- Clinical recommendation -->
-    <div class="clinical-box">
-      <p class="sec-label" style="margin-bottom:6px;">Clinical Recommendation</p>
-      <p class="clinical-action" id="c-action">—</p>
-      <span class="triage-badge" id="c-triage">—</span>
-    </div>
-
-  </div><!-- /results-card -->
-
-  <!-- Disclaimer (mobile) -->
-  <div class="glass-card" style="padding:10px 12px; display:none" id="mobile-disc">
-    <p style="font-size:10px; color:var(--faint); line-height:1.5; text-align:center;">
-      ⚠️ Research use only — not for clinical diagnosis.
-    </p>
-  </div>
-
-</aside>
-
-<!-- ═══════════════════════════════════════════════════════════
-     RIGHT — 3D SIM STATS PANEL
-═══════════════════════════════════════════════════════════ -->
+<!-- Stats Panel -->
 <div class="stats-panel">
   <div class="sp-card">
-    <div class="spc-lbl">Bone Mineral Density</div>
+    <div class="spc-lbl">Joint Space (JSN)</div>
+    <div class="spc-val c" id="sp-jsn">4.8 mm</div>
+    <div class="spc-sub">Tibiofemoral clearance</div>
+  </div>
+  <div class="sp-card">
+    <div class="spc-lbl">Subchondral BMD</div>
     <div class="spc-val c" id="sp-bmd">1.24</div>
-    <div class="spc-sub">g/cm² (DXA)</div>
+    <div class="spc-sub">g/cm² (Femoral/Tibial)</div>
   </div>
   <div class="sp-card">
-    <div class="spc-lbl">T-Score</div>
+    <div class="spc-lbl">WHO T-Score</div>
     <div class="spc-val" id="sp-tscore">+0.8</div>
-    <div class="spc-sub">WHO classification</div>
+    <div class="spc-sub">Normal: ≥ -1.0 SD</div>
   </div>
   <div class="sp-card">
-    <div class="spc-lbl">Porosity Index</div>
+    <div class="spc-lbl">Trabecular Porosity</div>
     <div class="spc-val r" id="sp-poros">12%</div>
     <div class="spc-sub">≤20% = normal</div>
   </div>
-  <div class="sp-card">
-    <div class="spc-lbl">Active Struts</div>
-    <div class="spc-val" id="sp-nodes">512</div>
-    <div class="spc-sub">trabecular nodes</div>
+  <div class="legend-card">
+    <div class="legend-title">Density Map</div>
+    <div class="legend-row"><span class="leg-dot" style="background:#007ba7"></span>Dense cortical</div>
+    <div class="legend-row"><span class="leg-dot" style="background:#9b59b6"></span>Transition zone</div>
+    <div class="legend-row"><span class="leg-dot" style="background:#ff2d95"></span>Porous / degraded</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     BOTTOM — SIM MODE CONTROLS
-═══════════════════════════════════════════════════════════ -->
-<div class="sim-controls">
-  <span class="ctrl-label">Bone State</span>
-  <div class="ctrl-divider"></div>
-  <button class="sim-btn active-c" id="sbtn-healthy"   onclick="simSetMode('healthy')">
-    <span class="sdot"></span>Healthy
-  </button>
-  <button class="sim-btn" id="sbtn-degrading" onclick="simSetMode('degrading')">
-    <span class="sdot"></span>Degrading
-  </button>
-  <button class="sim-btn" id="sbtn-osteo"    onclick="simSetMode('osteoporotic')">
-    <span class="sdot"></span>Osteoporotic
-  </button>
-  <div class="ctrl-divider"></div>
-  <span class="ctrl-label" style="font-size:9px; color:var(--faint);">Drag to rotate</span>
+<!-- Mode Bar -->
+<div class="mode-bar">
+  <div class="mode-hint">Drag canvas to rotate · Scroll to zoom</div>
+  <div class="mode-btns">
+    <button class="mode-btn active" data-mode="0">● Healthy</button>
+    <button class="mode-btn" data-mode="1">● Degrading</button>
+    <button class="mode-btn" data-mode="2">● Osteoporotic</button>
+    <span class="mode-btn" style="cursor:default;border-color:transparent;color:#555">Drag to rotate</span>
+  </div>
+  <div class="disclaimer">⚠ For research use only — not for clinical diagnosis or treatment decisions.</div>
 </div>
 
-<!-- Legend -->
-<div class="legend">
-  <div class="legend-title">Density Map</div>
-  <div class="legend-item"><span class="l-dot ld-c"></span>Dense cortical</div>
-  <div class="legend-item"><span class="l-dot ld-m"></span>Transition zone</div>
-  <div class="legend-item"><span class="l-dot ld-r"></span>Porous / degraded</div>
-</div>
-
-<!-- BMD strip -->
-<div class="bmd-strip"><div class="bmd-bar" id="bmd-bar" style="width:85%"></div></div>
-
-<!-- Drag hint -->
-<div class="drag-hint" id="drag-hint">Drag canvas to rotate · Scroll to zoom</div>
-
-<!-- Desktop disclaimer -->
-<div class="disclaimer">⚠ For research use only — not for clinical diagnosis or treatment decisions.</div>
-
-<!-- ═══════════════════════════════════════════════════════════
-     JAVASCRIPT — Upload + Inference
-═══════════════════════════════════════════════════════════ -->
-<script>
 {% raw %}
-'use strict';
-
-// ── DOM refs ───────────────────────────────────────────────
-const dropZone  = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-const dzEmpty   = document.getElementById('dz-empty');
-const dzPreview = document.getElementById('dz-preview');
-const dzThumb   = document.getElementById('dz-thumb');
-const dzFname   = document.getElementById('dz-fname');
-const dzFsize   = document.getElementById('dz-fsize');
-const btnAn     = document.getElementById('btn-analyze');
-const errBanner = document.getElementById('err-banner');
-const errMsg    = document.getElementById('err-msg');
-const resultsCard = document.getElementById('results-card');
-
-const resultPred = document.getElementById('result-pred');
-const gVal   = document.getElementById('g-val');
-const gFill  = document.getElementById('g-fill');
-const gThr   = document.getElementById('g-thr');
-const sConf  = document.getElementById('s-conf');
-const sThr   = document.getElementById('s-thr');
-const uncBox = document.getElementById('unc-box');
-const cAction= document.getElementById('c-action');
-const cTriage= document.getElementById('c-triage');
-const demoTag= document.getElementById('demo-tag');
-
-let selectedFile = null;
-
-function fmtBytes(b) {
-  if (b < 1024) return b+' B';
-  if (b < 1024*1024) return (b/1024).toFixed(1)+' KB';
-  return (b/1048576).toFixed(2)+' MB';
-}
-
-function fmt(v) { return (v*100).toFixed(1)+'%'; }
-
-function showErr(msg) { errMsg.textContent = msg; errBanner.classList.add('on'); }
-function hideErr()    { errBanner.classList.remove('on'); }
-
-// ── File selection ─────────────────────────────────────────
-function handleFile(file) {
-  if (!file) return;
-  const ok = ['image/jpeg','image/png','image/webp','image/bmp'];
-  if (file.type && !ok.includes(file.type)) { showErr('Unsupported format. Use JPEG or PNG.'); return; }
-  if (file.size > 20*1024*1024)             { showErr('File too large (max 20 MB).'); return; }
-  hideErr();
-  selectedFile = file;
-  const reader = new FileReader();
-  reader.onload = e => { dzThumb.src = e.target.result; };
-  reader.readAsDataURL(file);
-  dzFname.textContent = file.name;
-  dzFsize.textContent = fmtBytes(file.size);
-  dzEmpty.style.display = 'none';
-  dzPreview.classList.add('on');
-  btnAn.disabled = false;
-  resultsCard.classList.remove('on');
-}
-
-fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('over');
-  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-});
-
-// ── Render results ─────────────────────────────────────────
-function getState(d) {
-  if (d.uncertainty_zone)    return 'uncertain';
-  if (d.pathology_detected)  return 'pathology';
-  return 'normal';
-}
-
-function triageCls(t) {
-  const s = t.toLowerCase();
-  if (s.includes('high'))       return 'tb-high';
-  if (s.includes('moderate'))   return 'tb-moderate';
-  if (s.includes('borderline')) return 'tb-border';
-  return 'tb-routine';
-}
-
-function renderResult(d) {
-  const state = getState(d);
-
-  resultPred.textContent = d.prediction;
-  resultPred.className   = 'result-prediction rp-' + state;
-
-  const prob = d.osteoporosis_probability;
-  const thr  = d.threshold_used;
-  gVal.textContent = fmt(prob);
-  gFill.className  = 'gauge-fill gf-' + state;
-  gFill.style.width = (prob * 100).toFixed(2) + '%';
-  gThr.style.left  = (thr * 100).toFixed(2) + '%';
-  gThr.setAttribute('data-lbl', 'T=' + thr.toFixed(3));
-
-  sConf.textContent = fmt(d.confidence);
-  sThr.textContent  = d.threshold_used.toFixed(4);
-
-  uncBox.classList.toggle('on', !!d.uncertainty_zone);
-  cAction.textContent = d.clinical_action;
-  cTriage.textContent = d.clinical_triage;
-  cTriage.className   = 'triage-badge ' + triageCls(d.clinical_triage);
-
-  demoTag.classList.toggle('on', !!d.demo_mode);
-
-  resultsCard.classList.add('on');
-
-  // ── Drive the 3D simulation from the prediction ──────────
-  if (d.uncertainty_zone) {
-    simSetMode('degrading');
-  } else if (d.pathology_detected) {
-    const p = d.osteoporosis_probability;
-    simSetMode(p >= 0.70 ? 'osteoporotic' : 'degrading');
-  } else {
-    simSetMode('healthy');
-  }
-}
-
-// ── Analyze ────────────────────────────────────────────────
-btnAn.addEventListener('click', async () => {
-  if (!selectedFile) return;
-  hideErr();
-  btnAn.classList.add('loading');
-  btnAn.disabled = true;
-  btnAn.querySelector('.lbl').textContent = 'Analyzing…';
-
-  const fd = new FormData();
-  fd.append('file', selectedFile);
-
-  try {
-    const r = await fetch('/predict', { method: 'POST', body: fd });
-    if (!r.ok) {
-      let detail = `HTTP ${r.status}`;
-      try { const j = await r.json(); detail = j.detail || detail; } catch(_){}
-      throw new Error(detail);
-    }
-    const data = await r.json();
-    renderResult(data);
-  } catch(e) {
-    showErr(e.message || 'Network error. Please try again.');
-  } finally {
-    btnAn.classList.remove('loading');
-    btnAn.disabled = false;
-    btnAn.querySelector('.lbl').textContent = 'Analyze Radiograph';
-  }
-});
-{% endraw %}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     WEBGL 2 — 3D TRABECULAR BONE SIMULATION
-     Jet Black #0a0a0a | Cerulean #007ba7 | Neon Rose #ff2d95
-     Femoral condyle trabecular microarchitecture, animated
-     bone mineral density degradation (osteoporosis model)
-═══════════════════════════════════════════════════════════ -->
 <script>
-{% raw %}
-(function() {
-'use strict';
+// ============================================================
+//  ANATOMICAL KNEE JOINT — WebGL 2 Simulation
+//  Structures: Distal Femur (condyles) + Tibiofemoral Joint Space
+//              Proximal Tibia (plateau + spine) + Fibular Head
+//  Pathology:  Subchondral demineralisation, JSN, trabecular loss
+// ============================================================
+(function(){
+"use strict";
 
-const canvas = document.getElementById('bone-canvas');
-if (!canvas) return;
+const canvas = document.getElementById('gl');
+const gl = canvas.getContext('webgl2',{antialias:true,alpha:false});
+if(!gl){document.body.innerHTML='<p style="color:#f00;padding:40px">WebGL 2 not supported.</p>';return;}
 
-const gl = canvas.getContext('webgl2', {
-  antialias: true,
-  alpha: false,
-  depth: true,
-  powerPreference: 'high-performance'
-});
-
-if (!gl) {
-  console.error('OrthoScan: WebGL 2 not supported.');
-  const eb = document.getElementById('webgl-err');
-  if (eb) eb.style.display = 'block';
-  return;
-}
-
-// ── Viewport Resize ──────────────────────────────────────
-function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  canvas.width  = Math.max(300, Math.round(W * dpr));
-  canvas.height = Math.max(300, Math.round(H * dpr));
-  gl.viewport(0, 0, canvas.width, canvas.height);
-}
-resize();
-window.addEventListener('resize', resize);
-
-// ── Shaders ──────────────────────────────────────────────
-const VS_NODE = `#version 300 es
+// ─── SHADERS ─────────────────────────────────────────────────
+const VS = `#version 300 es
 precision highp float;
-uniform mat4 u_mvp;
 in vec3  a_pos;
-in vec3  a_col;
-in float a_alive;
-out vec3  v_col;
+in float a_density;   // 0=dead/porous  1=dense/healthy
+in float a_isFemur;   // 1=femur bone  0=tibia/fibula
+in float a_isSub;     // 1=subchondral node
+
+uniform mat4 u_mvp;
+uniform float u_pathology;   // 0..1 degradation
+uniform float u_collapse;    // 0..1 JSN collapse (femur drops toward tibia)
+uniform float u_time;
+
+out float v_density;
 out float v_alive;
-void main() {
-  if (a_alive <= 0.005) {
-    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-    gl_PointSize = 0.0;
-    return;
+out float v_glow;
+
+void main(){
+  vec3 p = a_pos;
+
+  // JSN: femur descends toward tibia
+  if(a_isFemur > 0.5){
+    p.y -= u_collapse * 0.55;
   }
-  v_col   = a_col;
-  v_alive = a_alive;
-  vec4 p = u_mvp * vec4(a_pos, 1.0);
-  gl_Position = p;
-  float sz = (16.0 * a_alive) / max(0.5, p.w * 0.25);
-  gl_PointSize = clamp(sz, 3.0, 16.0);
+
+  // Subchondral dies first, then shaft trabecular
+  float deathThresh = mix(0.15, 0.55, a_isSub);
+  float alive = 1.0 - smoothstep(deathThresh, deathThresh + 0.3, u_pathology * a_density);
+  v_alive = alive;
+
+  // Pulsing glow on degraded subchondral nodes
+  float pulse = sin(u_time * 2.8 + a_pos.x * 4.0 + a_pos.z * 3.0) * 0.5 + 0.5;
+  v_glow = (1.0 - alive) * a_isSub * pulse * u_pathology;
+
+  v_density = a_density;
+
+  // Dead nodes shrink to point
+  p *= mix(0.0, 1.0, alive);
+
+  gl_Position = u_mvp * vec4(p, 1.0);
+  gl_PointSize = mix(1.5, 5.5, a_density) * alive + (1.0 - alive) * 0.0;
 }`;
 
-const FS_NODE = `#version 300 es
+const FS = `#version 300 es
 precision highp float;
-in vec3  v_col;
+in float v_density;
 in float v_alive;
-out vec4 fc;
-void main() {
+in float v_glow;
+out vec4 fragColor;
+
+uniform float u_pathology;
+
+void main(){
+  // Soft circular point
   vec2 uv = gl_PointCoord * 2.0 - 1.0;
-  float d2 = dot(uv, uv);
-  if (d2 > 1.0) discard;
-  float alpha = (1.0 - d2) * v_alive;
-  float glow = exp(-d2 * 2.0) * 0.75;
-  vec3 col = v_col + glow;
-  fc = vec4(col, alpha);
+  float r = dot(uv,uv);
+  if(r > 1.0) discard;
+  float alpha = (1.0 - r) * v_alive;
+  if(alpha < 0.01) discard;
+
+  // Healthy: cerulean #007ba7, Porous: rose #ff2d95
+  vec3 cerulean = vec3(0.0, 0.482, 0.655);
+  vec3 rose     = vec3(1.0, 0.176, 0.584);
+  vec3 purple   = vec3(0.6, 0.35, 0.85);
+
+  // Colour by density within current pathology state
+  vec3 col = mix(rose, mix(purple, cerulean, v_density), v_density);
+
+  // Add glow for eroding subchondral
+  col = mix(col, rose, v_glow * 0.8);
+
+  // Rim highlight
+  float rim = 1.0 - smoothstep(0.5, 1.0, r);
+  col += rim * 0.12;
+
+  fragColor = vec4(col, alpha * 0.92);
 }`;
 
-const VS_EDGE = `#version 300 es
-precision highp float;
-uniform mat4 u_mvp;
-in vec3  a_pos;
-in vec3  a_col;
-in float a_alive;
-out vec3  v_col;
-out float v_alive;
-void main() {
-  if (a_alive <= 0.005) {
-    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-    return;
-  }
-  v_col   = a_col;
-  v_alive = a_alive;
-  gl_Position = u_mvp * vec4(a_pos, 1.0);
-}`;
-
-const FS_EDGE = `#version 300 es
-precision highp float;
-in vec3  v_col;
-in float v_alive;
-out vec4 fc;
-void main() {
-  fc = vec4(v_col, v_alive * 0.55);
-}`;
-
-function compileShader(type, src) {
+function compileShader(src, type){
   const s = gl.createShader(type);
   gl.shaderSource(s, src);
   gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-    console.error('Shader compile error:', gl.getShaderInfoLog(s));
-  }
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    console.error(gl.getShaderInfoLog(s));
   return s;
 }
+const prog = gl.createProgram();
+gl.attachShader(prog, compileShader(VS, gl.VERTEX_SHADER));
+gl.attachShader(prog, compileShader(FS, gl.FRAGMENT_SHADER));
+gl.linkProgram(prog);
+if(!gl.getProgramParameter(prog, gl.LINK_STATUS))
+  console.error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
 
-function createProgram(vsSrc, fsSrc) {
-  const p = gl.createProgram();
-  gl.attachShader(p, compileShader(gl.VERTEX_SHADER, vsSrc));
-  gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
-  gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
-    console.error('Program link error:', gl.getProgramInfoLog(p));
-  }
-  return p;
-}
+const A_POS     = gl.getAttribLocation(prog,'a_pos');
+const A_DENSITY = gl.getAttribLocation(prog,'a_density');
+const A_FEMUR   = gl.getAttribLocation(prog,'a_isFemur');
+const A_SUB     = gl.getAttribLocation(prog,'a_isSub');
+const U_MVP     = gl.getUniformLocation(prog,'u_mvp');
+const U_PATH    = gl.getUniformLocation(prog,'u_pathology');
+const U_COL     = gl.getUniformLocation(prog,'u_collapse');
+const U_TIME    = gl.getUniformLocation(prog,'u_time');
 
-const progNode = createProgram(VS_NODE, FS_NODE);
-const progEdge = createProgram(VS_EDGE, FS_EDGE);
-const uMvpNode = gl.getUniformLocation(progNode, 'u_mvp');
-const uMvpEdge = gl.getUniformLocation(progEdge, 'u_mvp');
+// ─── GEOMETRY BUILDER ────────────────────────────────────────
+// Returns array of {x,y,z,density,isFemur,isSub}
+function buildKneeJoint(){
+  const pts = [];
+  const rng = (a,b) => a + Math.random()*(b-a);
 
-// ── Standard OpenGL Column-Major Matrix Math ──────────────
-function mat4Identity() {
-  const m = new Float32Array(16);
-  m[0] = 1; m[5] = 1; m[10] = 1; m[15] = 1;
-  return m;
-}
-
-function mat4Multiply(a, b) {
-  const out = new Float32Array(16);
-  for (let c = 0; c < 4; c++) {
-    for (let r = 0; r < 4; r++) {
-      let sum = 0;
-      for (let k = 0; k < 4; k++) {
-        sum += a[k * 4 + r] * b[c * 4 + k];
-      }
-      out[c * 4 + r] = sum;
+  // Helper: add trabecular network inside a region
+  // isSub = nodes near articular surface
+  function addTrabecular(count, region, isFemur, densityRange, subRange){
+    const [xMin,xMax,yMin,yMax,zMin,zMax] = region;
+    for(let i=0;i<count;i++){
+      const x = rng(xMin,xMax);
+      const y = rng(yMin,yMax);
+      const z = rng(zMin,zMax);
+      const d = rng(densityRange[0], densityRange[1]);
+      // subchondral: near articular surface
+      const nearSurface = isFemur
+        ? (y < yMin + 0.35 * (yMax-yMin)) // bottom of femur = articular side
+        : (y > yMin + 0.65 * (yMax-yMin)); // top of tibia = articular side
+      const isSub = (nearSurface || (Math.random() < (subRange||0.2))) ? 1 : 0;
+      pts.push({x,y,z,density:d,isFemur:isFemur?1:0,isSub});
     }
   }
-  return out;
-}
 
-function mat4Perspective(fovy, aspect, near, far) {
-  const f = 1.0 / Math.tan(fovy / 2.0);
-  const nf = 1.0 / (near - far);
-  const out = new Float32Array(16);
-  out[0] = f / aspect;
-  out[5] = f;
-  out[10] = (far + near) * nf;
-  out[11] = -1.0;
-  out[14] = (2.0 * far * near) * nf;
-  return out;
-}
-
-function mat4Translate(x, y, z) {
-  const out = mat4Identity();
-  out[12] = x;
-  out[13] = y;
-  out[14] = z;
-  return out;
-}
-
-function mat4RotX(rad) {
-  const out = mat4Identity();
-  const c = Math.cos(rad);
-  const s = Math.sin(rad);
-  out[5] = c;
-  out[6] = s;
-  out[9] = -s;
-  out[10] = c;
-  return out;
-}
-
-function mat4RotY(rad) {
-  const out = mat4Identity();
-  const c = Math.cos(rad);
-  const s = Math.sin(rad);
-  out[0] = c;
-  out[2] = -s;
-  out[8] = s;
-  out[10] = c;
-  return out;
-}
-
-// ── Color System ─────────────────────────────────────────
-// Jet Black #0a0a0a | Cerulean #007ba7 | Neon Rose #ff2d95
-const C_CERULEAN = [0.0, 0.482, 0.655];
-const C_MID      = [0.42, 0.28, 0.72];
-const C_ROSE     = [1.0, 0.176, 0.584];
-
-function lerp3(a, b, t) {
-  return [
-    a[0] + (b[0] - a[0]) * t,
-    a[1] + (b[1] - a[1]) * t,
-    a[2] + (b[2] - a[2]) * t
-  ];
-}
-
-// ── Procedural Trabecular Bone Lattice ───────────────────
-const GX = 11, GY = 13, GZ = 11;
-const NT = GX * GY * GZ;
-const nPos   = new Float32Array(NT * 3);
-const nBase  = [];
-const nValid = new Uint8Array(NT);
-const nDeath = new Float32Array(NT);
-
-for (let ix = 0; ix < GX; ix++) {
-  for (let iy = 0; iy < GY; iy++) {
-    for (let iz = 0; iz < GZ; iz++) {
-      const i = ix * GY * GZ + iy * GZ + iz;
-      const nx = (ix / (GX - 1)) * 2 - 1;
-      const ny = (iy / (GY - 1)) * 2 - 1;
-      const nz = (iz / (GZ - 1)) * 2 - 1;
-
-      // Femoral condyle organic cross-section (ellipsoid)
-      const r = (nx * nx) / (0.88 * 0.88) +
-                ((ny + 0.08) * (ny + 0.08)) / (1.06 * 1.06) +
-                (nz * nz) / (0.82 * 0.82);
-
-      if (r > 1.0) { nValid[i] = 0; continue; }
-      nValid[i] = 1;
-
-      const sc = 1.95;
-      nPos[i * 3 + 0] = nx * sc + (Math.random() - 0.5) * 0.14;
-      nPos[i * 3 + 1] = ny * sc + (Math.random() - 0.5) * 0.11;
-      nPos[i * 3 + 2] = nz * sc + (Math.random() - 0.5) * 0.14;
-
-      const depth = Math.sqrt(r);
-      const c = lerp3(C_MID, C_CERULEAN, Math.pow(depth, 0.5));
-      nBase.push(c[0], c[1], c[2]);
-
-      // Interior cancellous bone demineralizes first, outer cortex last
-      nDeath[i] = (1.0 - Math.pow(depth, 0.4)) * 0.65 + Math.random() * 0.35;
+  // Helper: ellipsoid shell (cortical bone surface)
+  function addCorticalShell(cx,cy,cz, rx,ry,rz, count, isFemur, densityRange, isSub){
+    for(let i=0;i<count;i++){
+      const theta = Math.acos(2*Math.random()-1);
+      const phi   = Math.random()*Math.PI*2;
+      const jitter = 0.03;
+      const x = cx + (rx+rng(-jitter,jitter)) * Math.sin(theta)*Math.cos(phi);
+      const y = cy + (ry+rng(-jitter,jitter)) * Math.cos(theta);
+      const z = cz + (rz+rng(-jitter,jitter)) * Math.sin(theta)*Math.sin(phi);
+      const d = rng(densityRange[0],densityRange[1]);
+      pts.push({x,y,z,density:d,isFemur:isFemur?1:0,isSub:isSub?1:0});
     }
   }
-}
 
-// Connect struts to adjacent and diagonal neighbors
-const edges = [];
-for (let ix = 0; ix < GX; ix++) {
-  for (let iy = 0; iy < GY; iy++) {
-    for (let iz = 0; iz < GZ; iz++) {
-      const a = ix * GY * GZ + iy * GZ + iz;
-      if (!nValid[a]) continue;
-      for (const [dx, dy, dz] of [[1,0,0], [0,1,0], [0,0,1], [1,1,0], [1,0,1], [0,1,1]]) {
-        const jx = ix + dx, jy = iy + dy, jz = iz + dz;
-        if (jx >= GX || jy >= GY || jz >= GZ) continue;
-        const b = jx * GY * GZ + jy * GZ + jz;
-        if (!nValid[b]) continue;
-        edges.push(a, b);
-      }
+  // Helper: cylinder cortex
+  function addCylinder(cx,yBot,yTop,r, count, isFemur, densityRange, subMode){
+    for(let i=0;i<count;i++){
+      const angle = Math.random()*Math.PI*2;
+      const y = rng(yBot,yTop);
+      const rr = r + rng(-0.025,0.025);
+      const x = cx + rr*Math.cos(angle);
+      const z = rr*Math.sin(angle);
+      const d = rng(densityRange[0],densityRange[1]);
+      const isSub = subMode ? 1 : 0;
+      pts.push({x,y,z,density:d,isFemur:isFemur?1:0,isSub});
     }
   }
-}
-const NE = edges.length >> 1;
 
-// ── CPU Data Buffers ─────────────────────────────────────
-const npA = new Float32Array(NT * 3);
-const ncA = new Float32Array(NT * 3);
-const naA = new Float32Array(NT);
-const epA = new Float32Array(NE * 2 * 3);
-const ecA = new Float32Array(NE * 2 * 3);
-const eaA = new Float32Array(NE * 2);
+  // ── DISTAL FEMUR ──────────────────────────────────────────
+  // Femoral shaft (diaphysis) — upper part
+  addCylinder(0, 1.5, 3.2, 0.42, 320, true, [0.75,1.0], false);
+  // Shaft trabecular interior
+  addTrabecular(500, [-0.35,0.35, 1.5,3.2, -0.35,0.35], true, [0.6,0.95]);
 
-function createGlBuffer(data) {
-  const b = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, b);
-  gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
-  return b;
-}
+  // Metaphysis (flares into condyles)
+  addCylinder(0, 0.75, 1.55, 0.44, 160, true, [0.72,0.98], false);
+  addTrabecular(300, [-0.4,0.4, 0.75,1.55, -0.4,0.4], true, [0.55,0.9]);
 
-const bNP = createGlBuffer(npA), bNC = createGlBuffer(ncA), bNA = createGlBuffer(naA);
-const bEP = createGlBuffer(epA), bEC = createGlBuffer(ecA), bEA = createGlBuffer(eaA);
+  // Medial condyle (left lobe)
+  addCorticalShell(-0.44, 0.22, 0, 0.42, 0.52, 0.42, 200, true, [0.70,0.98], true);
+  addTrabecular(400, [-0.88,-0.02, 0.0,0.72, -0.44,0.44], true, [0.55,0.90]);
 
-// ── VAO Setup ────────────────────────────────────────────
-function setupVertexAttributes(prog, posBuf, colBuf, aliveBuf) {
-  const locPos   = gl.getAttribLocation(prog, 'a_pos');
-  const locCol   = gl.getAttribLocation(prog, 'a_col');
-  const locAlive = gl.getAttribLocation(prog, 'a_alive');
+  // Lateral condyle (right lobe)
+  addCorticalShell(0.44, 0.22, 0, 0.42, 0.52, 0.42, 200, true, [0.70,0.98], true);
+  addTrabecular(400, [0.02,0.88, 0.0,0.72, -0.44,0.44], true, [0.55,0.90]);
 
-  if (locPos >= 0) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
-    gl.enableVertexAttribArray(locPos);
-    gl.vertexAttribPointer(locPos, 3, gl.FLOAT, false, 0, 0);
+  // Intercondylar fossa (the notch between condyles — lower density spongy)
+  addTrabecular(120, [-0.22,0.22, 0.05,0.55, -0.2,0.2], true, [0.4,0.65]);
+
+  // Articular cartilage face (bottom of femur, densest)
+  for(let i=0;i<180;i++){
+    const x = rng(-0.84,0.84);
+    const z = rng(-0.38,0.38);
+    const y = 0.06 + rng(-0.04,0.04) + 0.12*(x*x/(0.84*0.84));
+    pts.push({x,y,z,density:rng(0.78,1.0),isFemur:1,isSub:1});
   }
-  if (locCol >= 0) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, colBuf);
-    gl.enableVertexAttribArray(locCol);
-    gl.vertexAttribPointer(locCol, 3, gl.FLOAT, false, 0, 0);
+
+  // ── JOINT SPACE (ARTICULAR GAP) ───────────────────────────
+  // No geometry here — the gap is what makes it anatomical
+  // The gap is from y≈0 downward on femur to y≈-0.08 upward on tibia
+
+  // ── PROXIMAL TIBIA ────────────────────────────────────────
+  // Tibial plateau (flat top surface)
+  for(let i=0;i<220;i++){
+    const angle = Math.random()*Math.PI*2;
+    const rr = Math.random()*0.72;
+    const x = rr*Math.cos(angle);
+    const z = rr*Math.sin(angle)*0.85;
+    const y = -0.1 + rng(-0.03,0.03);
+    pts.push({x,y,z,density:rng(0.70,0.98),isFemur:0,isSub:1});
   }
-  if (locAlive >= 0) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, aliveBuf);
-    gl.enableVertexAttribArray(locAlive);
-    gl.vertexAttribPointer(locAlive, 1, gl.FLOAT, false, 0, 0);
-  }
+
+  // Tibial plateau subchondral slab
+  addTrabecular(500, [-0.72,0.72, -0.44,-0.1, -0.62,0.62], false, [0.55,0.90]);
+
+  // Tibial shaft (diaphysis) — going down
+  addCylinder(0, -2.8, -0.44, 0.40, 320, false, [0.72,1.0], false);
+  addTrabecular(500, [-0.34,0.34, -2.8,-0.44, -0.34,0.34], false, [0.55,0.90]);
+
+  // Tibial metaphysis
+  addCylinder(0, -0.44,-0.1, 0.65, 160, false, [0.68,0.95], false);
+
+  // Intercondylar eminence (central spine on tibial plateau)
+  addCorticalShell(0, -0.08, 0, 0.09, 0.22, 0.09, 80, false, [0.72,0.98], true);
+  addTrabecular(60, [-0.08,0.08, -0.08,0.14, -0.08,0.08], false, [0.6,0.9]);
+
+  // ── PROXIMAL FIBULA (lateral satellite) ───────────────────
+  addCorticalShell(0.88, -0.52, 0, 0.18, 0.25, 0.18, 80, false, [0.65,0.90], false);
+  addTrabecular(80, [0.72,1.04, -0.72,-0.3, -0.18,0.18], false, [0.5,0.80]);
+  addCylinder(0.88, -1.1, -0.72, 0.17, 80, false, [0.68,0.92], false);
+
+  return pts;
 }
 
-const vaoNode = gl.createVertexArray();
-gl.bindVertexArray(vaoNode);
-setupVertexAttributes(progNode, bNP, bNC, bNA);
+// Build geometry
+const rawPts = buildKneeJoint();
+const N = rawPts.length;
+const posArr = new Float32Array(N*3);
+const denArr = new Float32Array(N);
+const femArr = new Float32Array(N);
+const subArr = new Float32Array(N);
 
-const vaoEdge = gl.createVertexArray();
-gl.bindVertexArray(vaoEdge);
-setupVertexAttributes(progEdge, bEP, bEC, bEA);
+for(let i=0;i<N;i++){
+  posArr[i*3+0] = rawPts[i].x;
+  posArr[i*3+1] = rawPts[i].y;
+  posArr[i*3+2] = rawPts[i].z;
+  denArr[i]     = rawPts[i].density;
+  femArr[i]     = rawPts[i].isFemur;
+  subArr[i]     = rawPts[i].isSub;
+}
+
+// Upload to GPU
+function makeVBO(data){
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  return buf;
+}
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+
+const posBuf = makeVBO(posArr);
+gl.enableVertexAttribArray(A_POS);
+gl.vertexAttribPointer(A_POS, 3, gl.FLOAT, false, 0, 0);
+
+const denBuf = makeVBO(denArr);
+gl.enableVertexAttribArray(A_DENSITY);
+gl.vertexAttribPointer(A_DENSITY, 1, gl.FLOAT, false, 0, 0);
+
+const femBuf = makeVBO(femArr);
+gl.enableVertexAttribArray(A_FEMUR);
+gl.vertexAttribPointer(A_FEMUR, 1, gl.FLOAT, false, 0, 0);
+
+const subBuf = makeVBO(subArr);
+gl.enableVertexAttribArray(A_SUB);
+gl.vertexAttribPointer(A_SUB, 1, gl.FLOAT, false, 0, 0);
 
 gl.bindVertexArray(null);
 
-// ── Simulation State ─────────────────────────────────────
-let dT = 0.0;       // Current degradation fraction [0, 1]
-let tT = 0.0;       // Target degradation fraction
+// ─── MATRIX MATH (column-major) ──────────────────────────────
+function mat4(){return new Float32Array(16);}
+function identity(m){m[0]=m[5]=m[10]=m[15]=1;m[1]=m[2]=m[3]=m[4]=m[6]=m[7]=m[8]=m[9]=m[11]=m[12]=m[13]=m[14]=0;return m;}
 
-// ── Camera Orbit Controls ────────────────────────────────
-let rX = -0.22, rY = 0.5, zoom = 4.8;
-let drag = false, lmx = 0, lmy = 0, autoSpin = true;
-let ltx = 0, lty = 0;
-
-canvas.addEventListener('mousedown', e => {
-  drag = true; lmx = e.clientX; lmy = e.clientY; autoSpin = false;
-  const hint = document.getElementById('drag-hint');
-  if (hint) hint.classList.add('gone');
-});
-window.addEventListener('mouseup', () => { drag = false; });
-window.addEventListener('mousemove', e => {
-  if (!drag) return;
-  rY += (e.clientX - lmx) * 0.008;
-  rX += (e.clientY - lmy) * 0.006;
-  rX = Math.max(-1.1, Math.min(1.1, rX));
-  lmx = e.clientX; lmy = e.clientY;
-});
-window.addEventListener('wheel', e => {
-  if (e.target.closest && e.target.closest('.analysis-panel')) return;
-  zoom += e.deltaY * 0.005;
-  zoom = Math.max(3.0, Math.min(8.5, zoom));
-}, { passive: true });
-
-canvas.addEventListener('touchstart', e => {
-  if (e.touches.length > 0) {
-    ltx = e.touches[0].clientX; lty = e.touches[0].clientY; autoSpin = false;
+function mul(a,b){
+  const o=mat4();
+  for(let c=0;c<4;c++) for(let r=0;r<4;r++){
+    let s=0; for(let k=0;k<4;k++) s+=a[k*4+r]*b[c*4+k];
+    o[c*4+r]=s;
   }
-}, { passive: true });
-canvas.addEventListener('touchmove', e => {
-  if (e.touches.length > 0) {
-    rY += (e.touches[0].clientX - ltx) * 0.01;
-    rX += (e.touches[0].clientY - lty) * 0.008;
-    rX = Math.max(-1.1, Math.min(1.1, rX));
-    ltx = e.touches[0].clientX; lty = e.touches[0].clientY;
-  }
-}, { passive: true });
-
-// ── Mode Switcher (Global API) ───────────────────────────
-window.simSetMode = function(mode) {
-  tT = mode === 'healthy' ? 0.0 : mode === 'degrading' ? 0.48 : 1.0;
-  document.querySelectorAll('.sim-btn').forEach(b => { b.className = 'sim-btn'; });
-  const cls = mode === 'osteoporotic' ? 'active-r' : 'active-c';
-  const id  = mode === 'healthy' ? 'sbtn-healthy' : mode === 'degrading' ? 'sbtn-degrading' : 'sbtn-osteo';
-  const el  = document.getElementById(id);
-  if (el) el.classList.add(cls);
-};
-
-// ── Real-Time HUD Synchronization ────────────────────────
-const spBmd   = document.getElementById('sp-bmd');
-const spTs    = document.getElementById('sp-tscore');
-const spPoros = document.getElementById('sp-poros');
-const spNodes = document.getElementById('sp-nodes');
-const bmdBar  = document.getElementById('bmd-bar');
-
-function updateHUD(t) {
-  const bmd   = (1.24 - t * 0.76).toFixed(2);
-  const ts    = (0.8 - t * 3.3).toFixed(1);
-  const poros = Math.round(12 + t * 52);
-  const nodes = Math.round(NT * (1.0 - t * 0.72));
-  if (spBmd)   { spBmd.textContent = bmd; spBmd.className = 'spc-val ' + (t < 0.4 ? 'c' : 'r'); }
-  if (spTs)    spTs.textContent = (parseFloat(ts) >= 0 ? '+' : '') + ts;
-  if (spPoros) spPoros.textContent = poros + '%';
-  if (spNodes) spNodes.textContent = nodes;
-  if (bmdBar)  bmdBar.style.width = Math.max(5, 85 - t * 78) + '%';
+  return o;
 }
 
-// ── Main Render Loop ─────────────────────────────────────
-let prevTime = 0;
+function perspective(fov,asp,near,far){
+  const m=mat4();
+  const f=1/Math.tan(fov*0.5);
+  m[0]=f/asp; m[5]=f;
+  m[10]=(far+near)/(near-far); m[11]=-1;
+  m[14]=(2*far*near)/(near-far);
+  return m;
+}
 
-function frame(ts) {
-  const dt = Math.min((ts - prevTime) / 1000, 0.05);
-  prevTime = ts;
+function rotY(a){
+  const m=identity(mat4());
+  m[0]=Math.cos(a); m[8]=Math.sin(a);
+  m[2]=-Math.sin(a); m[10]=Math.cos(a);
+  return m;
+}
 
-  // Smooth degradation animation towards target state
-  dT += (tT - dT) * Math.min(1.0, dt * 1.5);
-  if (autoSpin) rY += dt * 0.16;
+function rotX(a){
+  const m=identity(mat4());
+  m[5]=Math.cos(a); m[9]=-Math.sin(a);
+  m[6]=Math.sin(a); m[10]=Math.cos(a);
+  return m;
+}
 
-  // 1. Populate node buffers
-  for (let i = 0; i < NT; i++) {
-    if (!nValid[i]) { naA[i] = 0; continue; }
-    const d = nDeath[i];
-    const alive = Math.max(0, Math.min(1, (d - dT) / 0.1 + 1));
-    const tc = Math.max(0, Math.min(1, (dT - d + 0.12) / 0.3));
-    const bc = [nBase[i * 3], nBase[i * 3 + 1], nBase[i * 3 + 2]];
-    const col = tc < 0.5 ? lerp3(bc, C_MID, tc * 2) : lerp3(C_MID, C_ROSE, (tc - 0.5) * 2);
+function translate(tx,ty,tz){
+  const m=identity(mat4());
+  m[12]=tx; m[13]=ty; m[14]=tz;
+  return m;
+}
 
-    npA[i * 3 + 0] = nPos[i * 3 + 0];
-    npA[i * 3 + 1] = nPos[i * 3 + 1];
-    npA[i * 3 + 2] = nPos[i * 3 + 2];
-    ncA[i * 3 + 0] = col[0];
-    ncA[i * 3 + 1] = col[1];
-    ncA[i * 3 + 2] = col[2];
-    naA[i] = alive;
+// ─── INTERACTION ──────────────────────────────────────────────
+let rotYaw = 0.3, rotPitch = -0.15, zoom = 4.5;
+let drag = false, lx = 0, ly = 0;
+
+canvas.addEventListener('mousedown', e=>{drag=true;lx=e.clientX;ly=e.clientY;});
+canvas.addEventListener('mousemove', e=>{
+  if(!drag) return;
+  rotYaw   += (e.clientX-lx)*0.008;
+  rotPitch += (e.clientY-ly)*0.006;
+  rotPitch  = Math.max(-1.1, Math.min(1.1, rotPitch));
+  lx=e.clientX; ly=e.clientY;
+});
+canvas.addEventListener('mouseup',   ()=>drag=false);
+canvas.addEventListener('mouseleave',()=>drag=false);
+canvas.addEventListener('wheel', e=>{
+  zoom += e.deltaY*0.005;
+  zoom  = Math.max(2.5, Math.min(8.0, zoom));
+  e.preventDefault();
+},{passive:false});
+
+// Touch
+let t0=null;
+canvas.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){drag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}
+  t0=null; if(e.touches.length===2) t0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+});
+canvas.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&drag){
+    rotYaw  +=(e.touches[0].clientX-lx)*0.008;
+    rotPitch+=(e.touches[0].clientY-ly)*0.006;
+    lx=e.touches[0].clientX;ly=e.touches[0].clientY;
   }
-
-  // 2. Populate edge strut buffers
-  for (let e = 0; e < NE; e++) {
-    const ia = edges[e * 2 + 0], ib = edges[e * 2 + 1];
-    for (let v = 0; v < 2; v++) {
-      const idx = v === 0 ? ia : ib;
-      const bi  = e * 2 + v;
-      epA[bi * 3 + 0] = npA[idx * 3 + 0];
-      epA[bi * 3 + 1] = npA[idx * 3 + 1];
-      epA[bi * 3 + 2] = npA[idx * 3 + 2];
-      ecA[bi * 3 + 0] = ncA[idx * 3 + 0];
-      ecA[bi * 3 + 1] = ncA[idx * 3 + 1];
-      ecA[bi * 3 + 2] = ncA[idx * 3 + 2];
-      eaA[bi]         = naA[idx];
-    }
+  if(e.touches.length===2&&t0!==null){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    zoom-=(d-t0)*0.012; zoom=Math.max(2.5,Math.min(8.0,zoom)); t0=d;
   }
+  e.preventDefault();
+},{passive:false});
+canvas.addEventListener('touchend',()=>drag=false);
 
-  // 3. Upload dynamic buffers to GPU
-  gl.bindBuffer(gl.ARRAY_BUFFER, bNP); gl.bufferData(gl.ARRAY_BUFFER, npA, gl.DYNAMIC_DRAW);
-  gl.bindBuffer(gl.ARRAY_BUFFER, bNC); gl.bufferData(gl.ARRAY_BUFFER, ncA, gl.DYNAMIC_DRAW);
-  gl.bindBuffer(gl.ARRAY_BUFFER, bNA); gl.bufferData(gl.ARRAY_BUFFER, naA, gl.DYNAMIC_DRAW);
+// ─── MODE STATE ───────────────────────────────────────────────
+const MODES = [
+  {pathology:0.0, collapse:0.0, jsn:'4.8 mm', bmd:'1.24', tscore:'+0.8', poros:'12%', jsnClass:'c', bmdClass:'c', tClass:'', pClass:'r'},
+  {pathology:0.45,collapse:0.4, jsn:'3.1 mm', bmd:'0.92', tscore:'−1.4', poros:'38%', jsnClass:'',  bmdClass:'', tClass:'', pClass:'r'},
+  {pathology:0.9, collapse:0.9, jsn:'1.4 mm', bmd:'0.65', tscore:'−2.9', poros:'72%', jsnClass:'r', bmdClass:'r',tClass:'r',pClass:'r'},
+];
+let targetPathology = 0, targetCollapse = 0;
+let curPathology    = 0, curCollapse    = 0;
+let currentMode     = 0;
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, bEP); gl.bufferData(gl.ARRAY_BUFFER, epA, gl.DYNAMIC_DRAW);
-  gl.bindBuffer(gl.ARRAY_BUFFER, bEC); gl.bufferData(gl.ARRAY_BUFFER, ecA, gl.DYNAMIC_DRAW);
-  gl.bindBuffer(gl.ARRAY_BUFFER, bEA); gl.bufferData(gl.ARRAY_BUFFER, eaA, gl.DYNAMIC_DRAW);
+function applyMode(m){
+  currentMode     = m;
+  targetPathology = MODES[m].pathology;
+  targetCollapse  = MODES[m].collapse;
+  const md = MODES[m];
+  // Update HUD
+  setHUD('sp-jsn',    md.jsn,    md.jsnClass);
+  setHUD('sp-bmd',    md.bmd,    md.bmdClass);
+  setHUD('sp-tscore', md.tscore, md.tClass);
+  setHUD('sp-poros',  md.poros,  md.pClass);
+  // Active button
+  document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.classList.toggle('active',+b.dataset.mode===m));
+}
 
-  // 4. Compute MVP matrix with standard column-major math
-  const aspect = canvas.width / canvas.height;
-  const proj   = mat4Perspective(0.65, aspect, 0.1, 100.0);
-  const trans  = mat4Translate(0, 0, -zoom);
-  const rx     = mat4RotX(rX);
-  const ry     = mat4RotY(rY);
-  const model  = mat4Multiply(ry, rx);
-  const mv     = mat4Multiply(trans, model);
-  const mvp    = mat4Multiply(proj, mv);
+function setHUD(id,val,cls){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.textContent=val;
+  el.className='spc-val '+(cls||'');
+}
 
-  // 5. Render Scene: Jet Black Background + Additive Glow
-  gl.viewport(0, 0, canvas.width, canvas.height);
-  gl.clearColor(0.039, 0.039, 0.039, 1.0); // #0a0a0a
+document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>{
+  b.addEventListener('click',()=>applyMode(+b.dataset.mode));
+});
+
+// ─── RENDER LOOP ──────────────────────────────────────────────
+let first = true;
+function resize(){
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  gl.viewport(0,0,canvas.width,canvas.height);
+}
+
+function frame(ts){
+  requestAnimationFrame(frame);
+  if(first){resize();first=false;}
+
+  const t = ts * 0.001;
+
+  // Auto-rotate when not dragging
+  if(!drag) rotYaw += 0.004;
+
+  // Smooth pathology transitions
+  curPathology += (targetPathology - curPathology) * 0.025;
+  curCollapse  += (targetCollapse  - curCollapse)  * 0.025;
+
+  // Clear
+  gl.clearColor(0.04, 0.04, 0.08, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-  // Draw Struts (Lines)
-  gl.useProgram(progEdge);
-  gl.uniformMatrix4fv(uMvpEdge, false, mvp);
-  gl.bindVertexArray(vaoEdge);
-  gl.drawArrays(gl.LINES, 0, NE * 2);
+  // Matrices
+  const asp   = canvas.width / canvas.height;
+  const proj  = perspective(0.9, asp, 0.1, 100.0);
+  const view  = mul(translate(0, -0.1, -zoom), mul(rotX(rotPitch), rotY(rotYaw)));
+  const mvp   = mul(proj, view);
 
-  // Draw Trabecular Nodes (Points with soft bloom)
-  gl.useProgram(progNode);
-  gl.uniformMatrix4fv(uMvpNode, false, mvp);
-  gl.bindVertexArray(vaoNode);
-  gl.drawArrays(gl.POINTS, 0, NT);
+  gl.useProgram(prog);
+  gl.uniformMatrix4fv(U_MVP, false, mvp);
+  gl.uniform1f(U_PATH, curPathology);
+  gl.uniform1f(U_COL,  curCollapse);
+  gl.uniform1f(U_TIME, t);
 
+  gl.bindVertexArray(vao);
+  gl.drawArrays(gl.POINTS, 0, N);
   gl.bindVertexArray(null);
-
-  updateHUD(dT);
-  requestAnimationFrame(frame);
 }
 
-try {
-  requestAnimationFrame(frame);
-} catch (err) {
-  console.error('3D sim runtime error:', err);
+requestAnimationFrame(frame);
+window.addEventListener('resize', resize);
+
+// ─── UPLOAD & PREDICT ─────────────────────────────────────────
+const dz   = document.getElementById('drop-zone');
+const fi   = document.getElementById('file-inp');
+const prev = document.getElementById('preview-img');
+const btn  = document.getElementById('analyze-btn');
+const rbox = document.getElementById('result-box');
+const rval = document.getElementById('result-val');
+const rconf= document.getElementById('result-conf');
+
+function handleFile(file){
+  if(!file||!file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  prev.src=url; prev.style.display='block';
+  btn.disabled=false;
+  btn._file=file;
 }
-})();
-{% endraw %}
+
+dz.addEventListener('click',()=>fi.click());
+fi.addEventListener('change',()=>handleFile(fi.files[0]));
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleFile(e.dataTransfer.files[0]);});
+
+btn.addEventListener('click',async()=>{
+  const file = btn._file;
+  if(!file) return;
+  btn.disabled=true;
+  btn.textContent='Analysing…';
+  const fd=new FormData();
+  fd.append('file',file);
+  try{
+    const resp=await fetch('/predict',{method:'POST',body:fd});
+    const data=await resp.json();
+    rbox.style.display='block';
+    if(data.error){
+      rval.textContent='Error'; rval.className='result-val'; rconf.textContent=data.error;
+    } else {
+      const isPath = data.prediction==='Pathology';
+      rval.textContent = data.prediction;
+      rval.className   = 'result-val '+(isPath?'pathology':'normal');
+      rconf.textContent= `Confidence: ${(data.confidence*100).toFixed(1)}%`;
+      // Auto-switch 3D mode
+      if(isPath) applyMode(2);
+      else       applyMode(0);
+    }
+  } catch(e){
+    rval.textContent='Network error'; rval.className='result-val'; rconf.textContent=String(e);
+    rbox.style.display='block';
+  }
+  btn.disabled=false;
+  btn.textContent='Analyze Radiograph';
+});
+
+})(); // end IIFE
 </script>
-
+{% endraw %}
 </body>
 </html>
