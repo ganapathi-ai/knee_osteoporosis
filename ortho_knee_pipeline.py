@@ -174,12 +174,14 @@ for category in ['normal', 'osteoporosis']:
         full_path = os.path.join(cat_dir, fname)
         
         # Robust Patient Seed Extraction:
-        # Strips offline augmentation tokens (_augmented, _aug, _rot, _flip, _copy, (1), etc.)
-        # so all augmented derivatives of the same knee share identical patient_id,
-        # preventing cross-split patient data leakage.
+        # Preserves the true patient identifier (e.g. "NormalG0 (12)" or "100" or "SevereG4 (45)")
+        # while stripping offline augmentation tokens (_augmented, _aug, _rot, _flip, etc.)
+        # so all augmented views of the same patient share the exact same patient_id.
         base_name = os.path.splitext(fname)[0]
-        cleaned = re.sub(r'(_augmented.*|_aug.*|_rot\d*|_flip.*|_copy.*|_trans.*|_zoom.*|_v\d+|\s*\(\d+\)|\s*copy.*)', '', base_name, flags=re.IGNORECASE)
-        patient_seed = re.sub(r'[-_]\d+$', '', cleaned).strip()
+        cleaned = re.sub(r'_augmented.*$', '', base_name, flags=re.IGNORECASE)
+        cleaned = re.sub(r'_aug.*$', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'[-_](rot|flip|copy|trans|zoom|v)\d*.*$', '', cleaned, flags=re.IGNORECASE)
+        patient_seed = cleaned.strip()
         if not patient_seed:
             patient_seed = base_name
 
@@ -208,32 +210,55 @@ print(patient_counts)
 # ==============================================================================
 # Step 4: Patient-Level Group Split (Train: 70%, Val: 15%, Test: 15%)
 # ==============================================================================
-# Zero patient overlap between splits guarantees zero test data leakage
-gss_outer = GroupShuffleSplit(n_splits=1, test_size=0.30, random_state=SEED)
-train_idx, temp_idx = next(gss_outer.split(df_meta, groups=df_meta['patient_id']))
+# Both 'normal' (514 patients) and 'osteoporosis' (578 patients) are split
+# using GroupShuffleSplit on patient_id.
+# This guarantees that all augmented variations of a patient's knee are kept
+# in the SAME split, guaranteeing absolute ZERO PATIENT DATA LEAKAGE.
 
-df_train = df_meta.iloc[train_idx].copy().reset_index(drop=True)
-df_temp = df_meta.iloc[temp_idx].copy().reset_index(drop=True)
+# 1. Split Normal patient groups (514 unique patients)
+df_normal = df_meta[df_meta['label'] == 0].copy().reset_index(drop=True)
+gss_outer_norm = GroupShuffleSplit(n_splits=1, test_size=0.30, random_state=SEED)
+train_norm_idx, temp_norm_idx = next(gss_outer_norm.split(df_normal, groups=df_normal['patient_id']))
+df_train_norm = df_normal.iloc[train_norm_idx].copy().reset_index(drop=True)
+df_temp_norm  = df_normal.iloc[temp_norm_idx].copy().reset_index(drop=True)
 
-gss_inner = GroupShuffleSplit(n_splits=1, test_size=0.50, random_state=SEED)
-val_sub_idx, test_sub_idx = next(gss_inner.split(df_temp, groups=df_temp['patient_id']))
+gss_inner_norm = GroupShuffleSplit(n_splits=1, test_size=0.50, random_state=SEED)
+val_norm_idx, test_norm_idx = next(gss_inner_norm.split(df_temp_norm, groups=df_temp_norm['patient_id']))
+df_val_norm  = df_temp_norm.iloc[val_norm_idx].copy().reset_index(drop=True)
+df_test_norm = df_temp_norm.iloc[test_norm_idx].copy().reset_index(drop=True)
 
-df_val = df_temp.iloc[val_sub_idx].copy().reset_index(drop=True)
-df_test = df_temp.iloc[test_sub_idx].copy().reset_index(drop=True)
+# 2. Split Osteoporosis patient groups (578 unique patients)
+df_osteo = df_meta[df_meta['label'] == 1].copy().reset_index(drop=True)
+gss_outer_osteo = GroupShuffleSplit(n_splits=1, test_size=0.30, random_state=SEED)
+train_osteo_idx, temp_osteo_idx = next(gss_outer_osteo.split(df_osteo, groups=df_osteo['patient_id']))
+df_train_osteo = df_osteo.iloc[train_osteo_idx].copy().reset_index(drop=True)
+df_temp_osteo  = df_osteo.iloc[temp_osteo_idx].copy().reset_index(drop=True)
 
-# Verification of Zero Leakage
+gss_inner_osteo = GroupShuffleSplit(n_splits=1, test_size=0.50, random_state=SEED)
+val_osteo_idx, test_osteo_idx = next(gss_inner_osteo.split(df_temp_osteo, groups=df_temp_osteo['patient_id']))
+df_val_osteo  = df_temp_osteo.iloc[val_osteo_idx].copy().reset_index(drop=True)
+df_test_osteo = df_temp_osteo.iloc[test_osteo_idx].copy().reset_index(drop=True)
+
+# 3. Combine splits and shuffle
+df_train = pd.concat([df_train_norm, df_train_osteo], ignore_index=True).sample(frac=1.0, random_state=SEED).reset_index(drop=True)
+df_val   = pd.concat([df_val_norm, df_val_osteo], ignore_index=True).sample(frac=1.0, random_state=SEED).reset_index(drop=True)
+df_test  = pd.concat([df_test_norm, df_test_osteo], ignore_index=True).sample(frac=1.0, random_state=SEED).reset_index(drop=True)
+
+# 4. Rigorous Patient Leakage Verification
 train_pts = set(df_train['patient_id'])
-val_pts = set(df_val['patient_id'])
-test_pts = set(df_test['patient_id'])
+val_pts   = set(df_val['patient_id'])
+test_pts  = set(df_test['patient_id'])
 
-assert len(train_pts.intersection(val_pts)) == 0, "FATAL: Patient leakage detected between Train and Val!"
-assert len(train_pts.intersection(test_pts)) == 0, "FATAL: Patient leakage detected between Train and Test!"
-assert len(val_pts.intersection(test_pts)) == 0, "FATAL: Patient leakage detected between Val and Test!"
+assert len(train_pts.intersection(val_pts))   == 0, "FATAL: Patient leakage detected between Train and Val!"
+assert len(train_pts.intersection(test_pts))  == 0, "FATAL: Patient leakage detected between Train and Test!"
+assert len(val_pts.intersection(test_pts))    == 0, "FATAL: Patient leakage detected between Val and Test!"
+assert set(df_val['label'].unique())  == {0, 1}, "FATAL: Val set missing a class after split!"
+assert set(df_test['label'].unique()) == {0, 1}, "FATAL: Test set missing a class after split!"
 
-print("\n[Data Split Verification: ZERO LEAKAGE CONFIRMED]")
-print(f"  Train Set: {len(df_train)} images ({len(train_pts)} unique patients) | Normal: {(df_train['label']==0).sum()}, Osteo: {(df_train['label']==1).sum()}")
-print(f"  Val Set:   {len(df_val)} images ({len(val_pts)} unique patients) | Normal: {(df_val['label']==0).sum()}, Osteo: {(df_val['label']==1).sum()}")
-print(f"  Test Set:  {len(df_test)} images ({len(test_pts)} unique patients) | Normal: {(df_test['label']==0).sum()}, Osteo: {(df_test['label']==1).sum()}")
+print("\n[Data Split Verification: ZERO LEAKAGE CONFIRMED ACROSS ALL PATIENTS]")
+print(f"  Train Set: {len(df_train)} images ({len(train_pts)} unique patients) | Normal: {(df_train['label']==0).sum()} images ({df_train_norm['patient_id'].nunique()} pts), Osteo: {(df_train['label']==1).sum()} images ({df_train_osteo['patient_id'].nunique()} pts)")
+print(f"  Val Set:   {len(df_val)} images ({len(val_pts)} unique patients) | Normal: {(df_val['label']==0).sum()} images ({df_val_norm['patient_id'].nunique()} pts), Osteo: {(df_val['label']==1).sum()} images ({df_val_osteo['patient_id'].nunique()} pts)")
+print(f"  Test Set:  {len(df_test)} images ({len(test_pts)} unique patients) | Normal: {(df_test['label']==0).sum()} images ({df_test_norm['patient_id'].nunique()} pts), Osteo: {(df_test['label']==1).sum()} images ({df_test_osteo['patient_id'].nunique()} pts)")
 
 # ==============================================================================
 # Step 5: Radiographic Augmentations & High-Throughput PyTorch DataLoaders

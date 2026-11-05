@@ -1,7 +1,7 @@
 {
   "model_name": "ortho_knee_densenet121.onnx",
   "backbone": "densenet121",
-  "optimal_threshold": 0.693,
+  "optimal_threshold": 0.5466,
   "input_size": [
     224,
     224
